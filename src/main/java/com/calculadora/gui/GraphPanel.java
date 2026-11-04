@@ -1,11 +1,10 @@
 package com.calculadora.gui;
 
 import com.calculadora.math.EvaluadorMath;
+import com.calculadora.math.FormatoNumero;
+import com.calculadora.math.Muestreo;
 import com.formdev.flatlaf.FlatClientProperties;
 import net.objecthunter.exp4j.Expression;
-import org.knowm.xchart.XChartPanel;
-import org.knowm.xchart.XYChart;
-import org.knowm.xchart.XYChartBuilder;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -13,34 +12,73 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.util.ArrayList;
 import java.util.List;
 
 public class GraphPanel extends JPanel {
 
+    /** Máximo de funciones que se pueden dibujar a la vez (una por color de la paleta). */
+    private static final int MAX_FUNCIONES = GraficaFuncion.PALETA.length;
+    private static final int PUNTOS = 800; // más puntos, curva más suave
+    private static final double FACTOR_ZOOM = 1.2;
+    private static final String AYUDA = "Rueda del ratón: zoom  ·  Arrastrar: mover  ·  Doble clic: vista inicial  ·  Separa varias funciones con ;";
+
     private JTextField funcInput;
     private JTextField minXInput;
     private JTextField maxXInput;
-    private JPanel chartContainer;
     private JLabel estadoLabel;
+    private JLabel coordenadasLabel;
+    private GraficaFuncion grafica;
 
     private final Color COLOR_BG = new Color(40, 42, 44);
     private final Color COLOR_BTN = new Color(156, 39, 176); // Púrpura moderno
     private final Color COLOR_ERROR = new Color(255, 99, 99);
 
+    /** Funciones dibujadas actualmente y su texto original. */
+    private final List<Expression> expresiones = new ArrayList<>();
+    private final List<String> textos = new ArrayList<>();
+    /** Ventana visible y la que se fijó al pulsar "Trazar" (para volver a ella). */
+    private double vistaMin;
+    private double vistaMax;
+    private double inicialMin;
+    private double inicialMax;
+    private double[] rangoYActual;
+
     public GraphPanel() {
         setLayout(new BorderLayout());
         setBackground(COLOR_BG);
 
-        // Panel superior de controles
+        add(crearControles(), BorderLayout.NORTH);
+
+        grafica = new GraficaFuncion();
+        grafica.setBorder(new EmptyBorder(6, 20, 0, 20));
+        add(grafica, BorderLayout.CENTER);
+        instalarInteraccionRaton();
+
+        coordenadasLabel = new JLabel(AYUDA);
+        coordenadasLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        coordenadasLabel.setForeground(new Color(160, 160, 160));
+        coordenadasLabel.setBorder(new EmptyBorder(6, 24, 12, 20));
+        add(coordenadasLabel, BorderLayout.SOUTH);
+
+        // Graficar algo por defecto al iniciar
+        SwingUtilities.invokeLater(() -> plotFunction(null));
+    }
+
+    // ------------------------------------------------------------------ construcción
+
+    private JPanel crearControles() {
         JPanel controlPanel = new JPanel(new GridBagLayout());
         controlPanel.setBackground(COLOR_BG);
-        controlPanel.setBorder(new EmptyBorder(20, 20, 0, 20));
-        
+        controlPanel.setBorder(new EmptyBorder(16, 20, 0, 20));
+
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 10, 5, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        
+
         Font labelFont = new Font("Segoe UI", Font.BOLD, 16);
         Font inputFont = new Font("Consolas", Font.PLAIN, 18);
 
@@ -49,62 +87,65 @@ public class GraphPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 0;
         controlPanel.add(lblFunc, gbc);
 
-        funcInput = crearCampo("sin(x)*x", 20, "ej: x^2 - 3*x + 1", inputFont);
+        funcInput = crearCampo("sin(x)*x; cos(x)", 20, "ej: sin(x); x^2/10; ln(x)", inputFont);
         // Al cambiar de pestaña no se selecciona todo el texto de la función
         funcInput.putClientProperty(FlatClientProperties.SELECT_ALL_ON_FOCUS_POLICY,
                 FlatClientProperties.SELECT_ALL_ON_FOCUS_POLICY_NEVER);
-        funcInput.setToolTipText("Usa x como variable. Ej: sin(x), x^2, ln(x), 1/x");
-        gbc.gridx = 1; gbc.gridy = 0; gbc.gridwidth = 5;
+        funcInput.setToolTipText("Usa x como variable. Separa hasta " + MAX_FUNCIONES + " funciones con punto y coma: sin(x); cos(x)");
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1;
         controlPanel.add(funcInput, gbc);
 
-        JLabel lblMin = new JLabel("X Mín:");
+        // Segunda fila en un panel de flujo para que los botones conserven su tamaño
+        JPanel fila = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        fila.setOpaque(false);
+
+        JLabel lblMin = new JLabel("X Mín:  ");
         lblMin.setFont(labelFont);
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
-        controlPanel.add(lblMin, gbc);
+        fila.add(lblMin);
 
-        minXInput = crearCampo("-10", 5, "-10", inputFont);
+        minXInput = crearCampo("-10", 8, "-10", inputFont);
         minXInput.setToolTipText("Número o expresión, ej: -2*pi");
-        gbc.gridx = 1; gbc.gridy = 1;
-        controlPanel.add(minXInput, gbc);
+        fila.add(minXInput);
 
-        JLabel lblMax = new JLabel("X Máx:");
+        JLabel lblMax = new JLabel("     X Máx:  ");
         lblMax.setFont(labelFont);
-        gbc.gridx = 2; gbc.gridy = 1;
-        controlPanel.add(lblMax, gbc);
+        fila.add(lblMax);
 
-        maxXInput = crearCampo("10", 5, "10", inputFont);
+        maxXInput = crearCampo("10", 8, "10", inputFont);
         maxXInput.setToolTipText("Número o expresión, ej: 2*pi");
-        gbc.gridx = 3; gbc.gridy = 1;
-        controlPanel.add(maxXInput, gbc);
+        fila.add(maxXInput);
 
-        JButton plotBtn = new JButton("  Trazar Gráfica  ");
-        plotBtn.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        plotBtn.setBackground(COLOR_BTN);
-        plotBtn.setForeground(Color.WHITE);
-        plotBtn.setFocusPainted(false);
-        plotBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        fila.add(Box.createHorizontalStrut(20));
+        JButton plotBtn = crearBoton("Trazar Gráfica", COLOR_BTN);
         plotBtn.addActionListener(this::plotFunction);
-        
-        gbc.gridx = 4; gbc.gridy = 1; gbc.gridwidth = 2;
-        controlPanel.add(plotBtn, gbc);
+        fila.add(plotBtn);
+
+        fila.add(Box.createHorizontalStrut(10));
+        JButton resetBtn = crearBoton("Vista inicial", new Color(70, 73, 75));
+        resetBtn.setToolTipText("Vuelve al rango de X Mín a X Máx (también con doble clic en la gráfica)");
+        resetBtn.addActionListener(e -> restablecerVista());
+        fila.add(resetBtn);
+
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 0;
+        controlPanel.add(fila, gbc);
 
         // Línea de estado: muestra los errores sin abrir ventanas emergentes
         estadoLabel = new JLabel(" ");
         estadoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 15));
         estadoLabel.setForeground(COLOR_ERROR);
-        gbc.gridx = 1; gbc.gridy = 2; gbc.gridwidth = 5;
+        gbc.gridx = 1; gbc.gridy = 2; gbc.gridwidth = 1;
         controlPanel.add(estadoLabel, gbc);
+        return controlPanel;
+    }
 
-        add(controlPanel, BorderLayout.NORTH);
-
-        // Contenedor de la gráfica
-        chartContainer = new JPanel(new BorderLayout());
-        chartContainer.setBackground(COLOR_BG);
-        chartContainer.setBorder(new EmptyBorder(10, 20, 20, 20));
-        add(chartContainer, BorderLayout.CENTER);
-        
-        // Graficar algo por defecto al iniciar
-        SwingUtilities.invokeLater(() -> plotFunction(null));
+    private JButton crearBoton(String texto, Color fondo) {
+        JButton boton = new JButton(texto);
+        boton.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        boton.setBackground(fondo);
+        boton.setForeground(Color.WHITE);
+        boton.setFocusPainted(false);
+        boton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return boton;
     }
 
     private JTextField crearCampo(String valor, int columnas, String ejemplo, Font fuente) {
@@ -131,9 +172,10 @@ public class GraphPanel extends JPanel {
         return campo;
     }
 
+    // ------------------------------------------------------------------ trazado
+
     private void plotFunction(ActionEvent e) {
         limpiarErrores();
-        String func = funcInput.getText().trim();
 
         // Se aceptan expresiones como "-2*pi" o "pi/2" además de números
         Double minX = leerLimite(minXInput, "X Mín");
@@ -150,91 +192,221 @@ public class GraphPanel extends JPanel {
             return;
         }
 
-        Expression expresion;
-        try {
-            expresion = EvaluadorMath.compilar(func, "x");
-        } catch (IllegalArgumentException ex) {
-            mostrarError(func.isEmpty() ? "Escribe una función de x, por ejemplo sin(x)."
-                    : "Sintaxis inválida en la función. Usa x como variable.", funcInput);
+        List<String> funciones = separarFunciones(funcInput.getText());
+        if (funciones.isEmpty()) {
+            mostrarError("Escribe una función de x, por ejemplo sin(x).", funcInput);
+            return;
+        }
+        if (funciones.size() > MAX_FUNCIONES) {
+            mostrarError("Puedes graficar hasta " + MAX_FUNCIONES + " funciones a la vez.", funcInput);
             return;
         }
 
-        double[] muestras = generarMuestras(minX, maxX, 800); // más puntos, curva más suave
-        List<Double> xData = new ArrayList<>(muestras.length + 16);
-        List<Double> yData = new ArrayList<>(muestras.length + 16);
-        boolean hasValidPoints = false;
-        double prevX = Double.NaN;
-        double prevY = Double.NaN;
+        List<Expression> compiladas = new ArrayList<>();
+        for (int i = 0; i < funciones.size(); i++) {
+            try {
+                compiladas.add(EvaluadorMath.compilar(funciones.get(i), "x"));
+            } catch (IllegalArgumentException ex) {
+                String cual = funciones.size() > 1 ? "la función " + (i + 1) + " (" + funciones.get(i) + ")" : "la función";
+                mostrarError("Sintaxis inválida en " + cual + ". Usa x como variable.", funcInput);
+                return;
+            }
+        }
 
+        expresiones.clear();
+        expresiones.addAll(compiladas);
+        textos.clear();
+        textos.addAll(funciones);
+        inicialMin = minX;
+        inicialMax = maxX;
+        dibujar(minX, maxX, false);
+    }
+
+    /** Divide "sin(x); cos(x)" en sus funciones, ignorando las vacías. */
+    private static List<String> separarFunciones(String texto) {
+        List<String> funciones = new ArrayList<>();
+        for (String parte : texto.split(";")) {
+            if (!parte.trim().isEmpty()) {
+                funciones.add(parte.trim());
+            }
+        }
+        return funciones;
+    }
+
+    /**
+     * Dibuja las funciones actuales en [min, max]. Con {@code actualizarCampos}
+     * los campos X Mín y X Máx reflejan la nueva ventana (zoom y desplazamiento).
+     */
+    private void dibujar(double min, double max, boolean actualizarCampos) {
+        List<Muestreo.Curva> curvas = new ArrayList<>();
         try {
-            for (double x : muestras) {
-                double y = evaluarSeguro(expresion, x);
-
-                // Si entre dos puntos hay una asíntota (p. ej. 1/x en 0) se corta la línea
-                if (!Double.isNaN(y) && !Double.isNaN(prevY) && hayAsintota(expresion, prevX, prevY, x, y)) {
-                    xData.add((prevX + x) / 2);
-                    yData.add(Double.NaN);
-                }
-
-                xData.add(x);
-                yData.add(y); // NaN deja un hueco en la gráfica en vez de dibujar un 0 falso
-                hasValidPoints |= !Double.isNaN(y);
-                prevX = x;
-                prevY = y;
+            for (Expression expresion : expresiones) {
+                curvas.add(Muestreo.muestrear(expresion, min, max, PUNTOS));
             }
         } catch (IllegalArgumentException ex) {
             mostrarError("Expresión incompleta en la función. Revisa operadores y paréntesis.", funcInput);
             return;
         }
 
-        if (!hasValidPoints) {
+        boolean algunPunto = false;
+        for (Muestreo.Curva c : curvas) {
+            algunPunto |= c.tienePuntos;
+        }
+        if (!algunPunto) {
             mostrarError("La función no tiene valores reales entre X Mín y X Máx.", funcInput);
             return;
         }
 
-        // Configurar estilo de XChart
-        XYChart chart = new XYChartBuilder()
-                .width(600).height(400)
-                .title("f(x) = " + func)
-                .xAxisTitle("Eje X")
-                .yAxisTitle("Eje Y")
-                .build();
-                
-        // Darle un look oscuro a la gráfica para que combine con FlatDarkLaf
-        chart.getStyler().setChartBackgroundColor(new Color(43, 43, 43));
-        chart.getStyler().setPlotBackgroundColor(new Color(30, 30, 30));
-        chart.getStyler().setPlotGridLinesColor(new Color(80, 80, 80));
-        chart.getStyler().setChartFontColor(Color.WHITE);
-        chart.getStyler().setAxisTickLabelsColor(Color.LIGHT_GRAY);
-        chart.getStyler().setLegendVisible(false);
-        chart.getStyler().setMarkerSize(0);
-        chart.getStyler().setXAxisDecimalPattern("#.##"); // evita etiquetas como -6.39549436795995
-        chart.getStyler().setSeriesColors(new Color[] { new Color(0, 200, 255) }); // Línea azul neón
+        boolean varias = curvas.size() > 1;
+        grafica.limpiar();
+        for (int i = 0; i < curvas.size(); i++) {
+            grafica.agregarCurva(nombreSerie(i, varias), curvas.get(i), GraficaFuncion.PALETA[i]);
+        }
+        rangoYActual = Muestreo.rangoY(curvas);
+        grafica.setRangos(min, max, rangoYActual);
+        grafica.setTitulo(varias ? "Funciones" : "f(x) = " + textos.get(0));
+        grafica.setLeyendaVisible(varias);
+        grafica.refrescar();
 
-        chart.addSeries(func, xData, yData);
+        vistaMin = min;
+        vistaMax = max;
+        if (actualizarCampos) {
+            int digitos = digitosParaVentana(min, max);
+            mostrarLimite(minXInput, FormatoNumero.formatear(min, digitos));
+            mostrarLimite(maxXInput, FormatoNumero.formatear(max, digitos));
+            limpiarErrores();
+        }
+    }
 
-        chartContainer.removeAll();
-        chartContainer.add(new XChartPanel<>(chart), BorderLayout.CENTER);
-        chartContainer.revalidate();
-        chartContainer.repaint();
+    /** Escribe el límite y deja visible su inicio (si no, un campo estrecho muestra solo el final). */
+    private static void mostrarLimite(JTextField campo, String texto) {
+        campo.setText(texto);
+        campo.setCaretPosition(0);
     }
 
     /**
-     * Puntos de muestreo uniformes en [min, max] más uno extra a mitad del primer
-     * intervalo. XChart alinea las marcas del eje X a los datos cuando estos están
-     * espaciados exactamente igual (y salen valores como -3.41, -2.83...); con ese
-     * punto adicional calcula marcas redondas (-10, -5, 0, 5, 10).
+     * Dígitos suficientes para distinguir los límites: con mucho zoom alrededor de
+     * x = 3 hacen falta más cifras que con la vista de -10 a 10.
      */
-    private static double[] generarMuestras(double min, double max, int cantidad) {
-        double paso = (max - min) / (cantidad - 1);
-        double[] muestras = new double[cantidad + 1];
-        muestras[0] = min;
-        muestras[1] = min + paso / 2;
-        for (int i = 1; i < cantidad; i++) {
-            muestras[i + 1] = min + i * paso;
-        }
-        return muestras;
+    private static int digitosParaVentana(double min, double max) {
+        double magnitud = Math.max(Math.abs(min), Math.abs(max));
+        double ancho = max - min;
+        int digitos = (int) Math.ceil(Math.log10(Math.max(magnitud, ancho) / ancho)) + 3;
+        return Math.max(3, Math.min(15, digitos));
     }
+
+    private String nombreSerie(int indice, boolean varias) {
+        return varias ? "f" + (indice + 1) + "(x) = " + textos.get(indice) : "f(x) = " + textos.get(indice);
+    }
+
+    private void restablecerVista() {
+        if (!expresiones.isEmpty()) {
+            dibujar(inicialMin, inicialMax, true);
+        }
+    }
+
+    // ------------------------------------------------------------------ zoom, desplazamiento y coordenadas
+
+    private void instalarInteraccionRaton() {
+        JComponent lienzo = grafica.getLienzo();
+        lienzo.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+        MouseAdapter raton = new MouseAdapter() {
+            private int pixelInicial;
+            private double minInicial;
+            private double maxInicial;
+            private double unidadesPorPixel;
+
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                if (expresiones.isEmpty()) {
+                    return;
+                }
+                double centro = grafica.xDesdePixel(e.getX());
+                if (centro < vistaMin || centro > vistaMax) {
+                    centro = (vistaMin + vistaMax) / 2;
+                }
+                // Rueda hacia arriba acerca, hacia abajo aleja, manteniendo fijo el punto bajo el cursor
+                double factor = Math.pow(FACTOR_ZOOM, e.getPreciseWheelRotation());
+                double nuevoMin = centro - (centro - vistaMin) * factor;
+                double nuevoMax = centro + (vistaMax - centro) * factor;
+                double ancho = nuevoMax - nuevoMin;
+                if (ancho > 1e-9 && ancho < 1e9) {
+                    dibujar(nuevoMin, nuevoMax, true);
+                    mostrarCoordenadas(e);
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (!SwingUtilities.isLeftMouseButton(e) || expresiones.isEmpty()) {
+                    return;
+                }
+                pixelInicial = e.getX();
+                minInicial = vistaMin;
+                maxInicial = vistaMax;
+                unidadesPorPixel = (grafica.xDesdePixel(e.getX() + 100) - grafica.xDesdePixel(e.getX())) / 100;
+                lienzo.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (!SwingUtilities.isLeftMouseButton(e) || expresiones.isEmpty()) {
+                    return;
+                }
+                double desplazamiento = (pixelInicial - e.getX()) * unidadesPorPixel;
+                dibujar(minInicial + desplazamiento, maxInicial + desplazamiento, true);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                lienzo.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 2) {
+                    restablecerVista();
+                }
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                mostrarCoordenadas(e);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                coordenadasLabel.setText(AYUDA);
+            }
+        };
+        lienzo.addMouseListener(raton);
+        lienzo.addMouseMotionListener(raton);
+        lienzo.addMouseWheelListener(raton);
+    }
+
+    /** Muestra x bajo el cursor y el valor de cada función en ese punto, con su color. */
+    private void mostrarCoordenadas(MouseEvent e) {
+        double x = grafica.xDesdePixel(e.getX());
+        double y = grafica.yDesdePixel(e.getY());
+        boolean dentro = x >= vistaMin && x <= vistaMax && rangoYActual != null
+                && y >= rangoYActual[0] && y <= rangoYActual[1];
+        if (expresiones.isEmpty() || !dentro) {
+            coordenadasLabel.setText(AYUDA);
+            return;
+        }
+        StringBuilder sb = new StringBuilder("<html>x = <b>").append(FormatoNumero.formatear(x, 6)).append("</b>");
+        boolean varias = expresiones.size() > 1;
+        for (int i = 0; i < expresiones.size(); i++) {
+            double fx = Muestreo.evaluarSeguro(expresiones.get(i), x);
+            String color = String.format("#%06x", GraficaFuncion.PALETA[i].getRGB() & 0xFFFFFF);
+            sb.append("&nbsp;&nbsp;&nbsp;<font color='").append(color).append("'>")
+                    .append(varias ? "f" + (i + 1) : "f").append("(x) = <b>")
+                    .append(FormatoNumero.formatear(fx, 6)).append("</b></font>");
+        }
+        coordenadasLabel.setText(sb.append("</html>").toString());
+    }
+
+    // ------------------------------------------------------------------ errores
 
     private Double leerLimite(JTextField campo, String nombre) {
         try {
@@ -264,28 +436,5 @@ public class GraphPanel extends JPanel {
 
     private static void marcarError(JTextField campo, boolean error) {
         campo.putClientProperty(FlatClientProperties.OUTLINE, error ? FlatClientProperties.OUTLINE_ERROR : null);
-    }
-
-    /** Evalúa f(x) devolviendo NaN cuando el punto no tiene un valor real finito. */
-    private static double evaluarSeguro(Expression expresion, double x) {
-        try {
-            double y = expresion.setVariable("x", x).evaluate();
-            return Double.isFinite(y) ? y : Double.NaN;
-        } catch (ArithmeticException ex) {
-            return Double.NaN; // división entre cero en este punto
-        }
-    }
-
-    /**
-     * Detecta un polo entre dos puntos consecutivos: si la función cambia de signo
-     * y en el punto medio su magnitud es mayor que en ambos extremos, no es un
-     * cruce continuo por cero sino una asíntota vertical.
-     */
-    private static boolean hayAsintota(Expression expresion, double x1, double y1, double x2, double y2) {
-        if (y1 * y2 >= 0) {
-            return false;
-        }
-        double yMedio = evaluarSeguro(expresion, (x1 + x2) / 2);
-        return Double.isNaN(yMedio) || Math.abs(yMedio) > Math.max(Math.abs(y1), Math.abs(y2));
     }
 }
