@@ -1,17 +1,85 @@
 package com.calculadora.gui;
 
 import com.calculadora.math.EvaluadorMath;
+import com.calculadora.math.EvaluadorMath.ModoAngular;
 import com.calculadora.math.FormatoNumero;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
+import java.awt.event.HierarchyEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class StandardPanel extends JPanel {
 
-    private JTextField display;
-    private boolean mostrandoResultado = false;
+    /** Tipo de tecla: define cómo se comporta y de qué color se pinta. */
+    private enum Tipo { NUMERO, OPERADOR, FUNCION, CONSTANTE, LIMPIAR, BORRAR, IGUAL, SIGNO, MODO }
+
+    /** Una tecla del teclado en pantalla: lo que se ve, lo que escribe y su ayuda. */
+    private static final class Tecla {
+        final String etiqueta;
+        final String token;
+        final Tipo tipo;
+        final String ayuda;
+
+        Tecla(String etiqueta, String token, Tipo tipo, String ayuda) {
+            this.etiqueta = etiqueta;
+            this.token = token;
+            this.tipo = tipo;
+            this.ayuda = ayuda;
+        }
+    }
+
+    private static Tecla t(String etiqueta, String token, Tipo tipo) {
+        return new Tecla(etiqueta, token, tipo, null);
+    }
+
+    private static Tecla t(String etiqueta, String token, Tipo tipo, String ayuda) {
+        return new Tecla(etiqueta, token, tipo, ayuda);
+    }
+
+    private static final Tecla[] TECLAS = {
+        t("RAD", "", Tipo.MODO, "Cambiar entre radianes y grados"),
+        t("(", "(", Tipo.NUMERO), t(")", ")", Tipo.OPERADOR),
+        t("%", "%", Tipo.OPERADOR, "Porcentaje: 200×10% = 20"),
+        t("C", "", Tipo.LIMPIAR, "Borrar todo (Esc)"), t("DEL", "", Tipo.BORRAR, "Borrar el último carácter (Retroceso)"),
+
+        t("sin", "sin(", Tipo.FUNCION), t("x²", "^2", Tipo.OPERADOR, "Elevar al cuadrado"),
+        t("7", "7", Tipo.NUMERO), t("8", "8", Tipo.NUMERO), t("9", "9", Tipo.NUMERO), t("÷", "÷", Tipo.OPERADOR),
+
+        t("cos", "cos(", Tipo.FUNCION), t("xʸ", "^", Tipo.OPERADOR, "Potencia"),
+        t("4", "4", Tipo.NUMERO), t("5", "5", Tipo.NUMERO), t("6", "6", Tipo.NUMERO), t("×", "×", Tipo.OPERADOR),
+
+        t("tan", "tan(", Tipo.FUNCION), t("√", "√(", Tipo.FUNCION, "Raíz cuadrada"),
+        t("1", "1", Tipo.NUMERO), t("2", "2", Tipo.NUMERO), t("3", "3", Tipo.NUMERO), t("−", "−", Tipo.OPERADOR),
+
+        t("ln", "ln(", Tipo.FUNCION, "Logaritmo natural"), t("n!", "!", Tipo.OPERADOR, "Factorial"),
+        t("0", "0", Tipo.NUMERO), t(".", ".", Tipo.NUMERO), t("±", "", Tipo.SIGNO, "Cambiar el signo"),
+        t("+", "+", Tipo.OPERADOR),
+
+        t("log", "log(", Tipo.FUNCION, "Logaritmo en base 10"), t("π", "π", Tipo.CONSTANTE),
+        t("e", "e", Tipo.CONSTANTE), t("x⁻¹", "^(−1)", Tipo.OPERADOR, "Inverso: 1/x"),
+        t("ANS", "ANS", Tipo.CONSTANTE, "Último resultado"), t("=", "", Tipo.IGUAL, "Calcular (Enter)")
+    };
+
+    /** Tokens que el Retroceso borra completos en vez de letra por letra. */
+    private static final Pattern TOKEN_FINAL = Pattern.compile("(?:asin|acos|atan|sin|cos|tan|log|ln|sqrt|abs|√)\\($|ANS$");
+
+    /** Último número del display, opcionalmente ya negado como (−n). */
+    private static final Pattern NUMERO_FINAL = Pattern.compile("(\\(−)?(\\d*\\.?\\d+(?:E-?\\d+)?)(\\))?$");
+
+    private static final String COLOR_BASE = "colorBase";
 
     // Colores para el diseño
     private final Color COLOR_BG = new Color(30, 30, 30);
@@ -22,113 +90,284 @@ public class StandardPanel extends JPanel {
     private final Color COLOR_BTN_FUNC = new Color(43, 43, 43); // Gris oscuro para funciones
     private final Color COLOR_BTN_CLEAR = new Color(244, 67, 54); // Rojo para limpiar
     private final Color COLOR_BTN_EQ = new Color(76, 175, 80); // Verde para igual
+    private final Color COLOR_BTN_MODO = new Color(33, 150, 243); // Azul para el modo angular
+    private final Color COLOR_INFO = new Color(150, 150, 150);
+    private final Color COLOR_ERROR = new Color(255, 99, 99);
+
+    private final Border bordeDisplay = crearBordeDisplay(new Color(100, 100, 100));
+    private final Border bordeDisplayError = crearBordeDisplay(COLOR_ERROR);
+
+    private JTextField display;
+    private JLabel infoLabel;
+    private JButton botonModo;
+    private final Map<String, JButton> botonesPorToken = new HashMap<>();
+
+    private boolean mostrandoResultado = false;
+    private boolean mostrandoError = false;
+    private ModoAngular modo = ModoAngular.RADIANES;
+    private double ans = 0;
 
     public StandardPanel() {
         setLayout(new BorderLayout(15, 15));
         setBackground(COLOR_BG);
-        setBorder(new EmptyBorder(25, 25, 25, 25));
+        setBorder(new EmptyBorder(20, 25, 25, 25));
+        setFocusable(true);
 
-        // Display
+        add(crearPantalla(), BorderLayout.NORTH);
+        add(crearTeclado(), BorderLayout.CENTER);
+
+        instalarAtajosDeTeclado();
+
+        // El panel recibe el foco al mostrarse para que el teclado funcione de inmediato
+        addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && isShowing()) {
+                SwingUtilities.invokeLater(this::requestFocusInWindow);
+            }
+        });
+        MouseAdapter recuperarFoco = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                requestFocusInWindow();
+            }
+        };
+        addMouseListener(recuperarFoco);
+        display.addMouseListener(recuperarFoco);
+    }
+
+    // ------------------------------------------------------------------ construcción
+
+    private JPanel crearPantalla() {
+        infoLabel = new JLabel(" ");
+        infoLabel.setFont(new Font("Consolas", Font.PLAIN, 18));
+        infoLabel.setForeground(COLOR_INFO);
+        infoLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        infoLabel.setBorder(new EmptyBorder(0, 5, 6, 8));
+
         display = new JTextField();
-        display.setFont(new Font("Consolas", Font.BOLD, 48));
+        display.setFont(new Font("Consolas", Font.BOLD, 44));
         display.setHorizontalAlignment(JTextField.RIGHT);
         display.setBackground(COLOR_DISPLAY_BG);
         display.setForeground(COLOR_DISPLAY_FG);
-        display.setCaretColor(COLOR_DISPLAY_FG);
-        display.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true),
-                new EmptyBorder(15, 15, 15, 15)
-        ));
+        display.setBorder(bordeDisplay);
         display.setEditable(false);
-        add(display, BorderLayout.NORTH);
+        display.setFocusable(false); // el panel maneja el teclado
+        display.setToolTipText("Ctrl+C copia el contenido, Ctrl+V pega una expresión");
 
-        // Botones
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(6, 5, 10, 10));
-        buttonPanel.setBackground(COLOR_BG);
-
-        String[] buttons = {
-            "(", ")", "C", "DEL", "/",
-            "7", "8", "9", "*", "sin",
-            "4", "5", "6", "-", "cos",
-            "1", "2", "3", "+", "tan",
-            "0", ".", "sqrt", "^", "log",
-            "pi", "e", "ln", "", "="
-        };
-
-        for (String text : buttons) {
-            if (text.isEmpty()) {
-                JPanel empty = new JPanel();
-                empty.setBackground(COLOR_BG);
-                buttonPanel.add(empty);
-                continue;
-            }
-            JButton button = createStyledButton(text);
-            buttonPanel.add(button);
-        }
-
-        add(buttonPanel, BorderLayout.CENTER);
+        JPanel pantalla = new JPanel(new BorderLayout());
+        pantalla.setBackground(COLOR_BG);
+        pantalla.add(infoLabel, BorderLayout.NORTH);
+        pantalla.add(display, BorderLayout.CENTER);
+        return pantalla;
     }
 
-    private JButton createStyledButton(String text) {
-        JButton button = new JButton(text);
+    private JPanel crearTeclado() {
+        JPanel teclado = new JPanel(new GridLayout(6, 6, 8, 8));
+        teclado.setBackground(COLOR_BG);
+        for (Tecla tecla : TECLAS) {
+            JButton boton = crearBoton(tecla);
+            teclado.add(boton);
+            if (!tecla.token.isEmpty()) {
+                botonesPorToken.put(tecla.token, boton);
+            }
+            if (tecla.tipo == Tipo.MODO) {
+                botonModo = boton;
+            }
+        }
+        return teclado;
+    }
+
+    private JButton crearBoton(Tecla tecla) {
+        JButton button = new JButton(tecla.etiqueta);
         button.setFont(new Font("Segoe UI", Font.BOLD, 22));
         button.setFocusPainted(false);
+        button.setFocusable(false); // así el foco (y el teclado) se quedan en el panel
         button.setBorder(BorderFactory.createLineBorder(new Color(80, 80, 80), 1, true));
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        // Asignar colores según el tipo de botón
-        if (text.matches("[0-9]") || text.equals(".")) {
-            button.setBackground(COLOR_BTN_NUM);
-            button.setForeground(Color.WHITE);
-        } else if (text.matches("[+\\-*/^]")) {
-            button.setBackground(COLOR_BTN_OP);
-            button.setForeground(Color.WHITE);
-        } else if (text.equals("C") || text.equals("DEL")) {
-            button.setBackground(COLOR_BTN_CLEAR);
-            button.setForeground(Color.WHITE);
-        } else if (text.equals("=")) {
-            button.setBackground(COLOR_BTN_EQ);
-            button.setForeground(Color.WHITE);
-        } else {
-            button.setBackground(COLOR_BTN_FUNC);
-            button.setForeground(Color.LIGHT_GRAY);
+        button.setToolTipText(tecla.ayuda);
+        button.setForeground(Color.WHITE);
+
+        switch (tecla.tipo) {
+            case NUMERO:
+                button.setBackground(COLOR_BTN_NUM);
+                break;
+            case OPERADOR:
+                // ")" se comporta como operador (continúa la expresión) pero se pinta como "("
+                button.setBackground(tecla.token.equals(")") ? COLOR_BTN_NUM : COLOR_BTN_OP);
+                break;
+            case LIMPIAR:
+            case BORRAR:
+                button.setBackground(COLOR_BTN_CLEAR);
+                break;
+            case IGUAL:
+                button.setBackground(COLOR_BTN_EQ);
+                break;
+            case MODO:
+                button.setBackground(COLOR_BTN_MODO);
+                break;
+            default:
+                button.setBackground(COLOR_BTN_FUNC);
+                button.setForeground(Color.LIGHT_GRAY);
+                break;
         }
 
-        button.addActionListener(this::onButtonClicked);
+        button.putClientProperty(COLOR_BASE, button.getBackground());
+        button.addActionListener(e -> procesar(tecla));
         return button;
     }
 
-    private void onButtonClicked(ActionEvent e) {
-        String command = ((JButton) e.getSource()).getText();
+    private Border crearBordeDisplay(Color color) {
+        return BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color, 2, true),
+                new EmptyBorder(12, 15, 12, 15));
+    }
 
-        if (mostrandoResultado) {
-            prepararTrasResultado(command);
+    // ------------------------------------------------------------------ teclado físico
+
+    private void instalarAtajosDeTeclado() {
+        InputMap im = getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        ActionMap am = getActionMap();
+
+        // Caracteres que se escriben tal cual o con su símbolo de pantalla
+        String desde = "0123456789.,+-*/^()%!";
+        String hacia = "0123456789..+−×÷^()%!";
+        for (int i = 0; i < desde.length(); i++) {
+            String token = String.valueOf(hacia.charAt(i));
+            registrar(im, am, KeyStroke.getKeyStroke(desde.charAt(i)), "tecla-" + i, () -> pulsarToken(token));
         }
-        String currentText = display.getText();
+        // Letras: permiten escribir funciones (sin, sqrt, ...) y constantes (pi, e)
+        for (char c = 'a'; c <= 'z'; c++) {
+            String letra = String.valueOf(c);
+            registrar(im, am, KeyStroke.getKeyStroke(c), "letra-" + c, () -> pulsarToken(letra));
+        }
 
-        switch (command) {
-            case "=":
+        Runnable igual = () -> pulsar(Tipo.IGUAL);
+        registrar(im, am, KeyStroke.getKeyStroke('='), "igual", igual);
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "enter", igual);
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "borrar", () -> pulsar(Tipo.BORRAR));
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "limpiar", () -> pulsar(Tipo.LIMPIAR));
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "suprimir", () -> pulsar(Tipo.LIMPIAR));
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK), "copiar", this::copiar);
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK), "pegar", this::pegar);
+    }
+
+    private void registrar(InputMap im, ActionMap am, KeyStroke ks, String nombre, Runnable accion) {
+        im.put(ks, nombre);
+        am.put(nombre, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                accion.run();
+            }
+        });
+    }
+
+    /** Simula la pulsación de la tecla con ese token (o escribe el texto si no hay tecla). */
+    private void pulsarToken(String token) {
+        for (Tecla tecla : TECLAS) {
+            if (tecla.token.equals(token)) {
+                pulsarTecla(tecla);
+                return;
+            }
+        }
+        procesar(t(token, token, Tipo.FUNCION)); // letras sueltas: inician una nueva entrada
+    }
+
+    private void pulsar(Tipo tipo) {
+        for (Tecla tecla : TECLAS) {
+            if (tecla.tipo == tipo) {
+                pulsarTecla(tecla);
+                return;
+            }
+        }
+    }
+
+    private void pulsarTecla(Tecla tecla) {
+        procesar(tecla);
+        resaltar(tecla);
+    }
+
+    /** Ilumina brevemente el botón en pantalla para dar respuesta visual al teclado. */
+    private void resaltar(Tecla tecla) {
+        JButton boton = tecla.token.isEmpty() ? buscarBoton(tecla) : botonesPorToken.get(tecla.token);
+        if (boton == null) {
+            return;
+        }
+        Color original = (Color) boton.getClientProperty(COLOR_BASE);
+        boton.setBackground(original.brighter());
+        Timer timer = new Timer(110, e -> boton.setBackground(original));
+        timer.setRepeats(false);
+        timer.start();
+    }
+
+    private JButton buscarBoton(Tecla tecla) {
+        Container teclado = (Container) getComponent(1);
+        for (Component c : teclado.getComponents()) {
+            if (c instanceof JButton && ((JButton) c).getText().equals(tecla.etiqueta)) {
+                return (JButton) c;
+            }
+        }
+        return null;
+    }
+
+    private void copiar() {
+        String texto = display.getText();
+        if (!texto.isEmpty()) {
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(texto), null);
+            mostrarInfo("Copiado al portapapeles", false);
+        }
+    }
+
+    private void pegar() {
+        try {
+            String texto = (String) Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor);
+            texto = texto.replaceAll("\\s+", "").replace('*', '×').replace('/', '÷').replace('-', '−');
+            if (!texto.isEmpty()) {
+                procesar(t(texto, texto, Tipo.NUMERO));
+            }
+        } catch (Exception ex) {
+            mostrarInfo("No se pudo pegar el contenido", true);
+        }
+    }
+
+    // ------------------------------------------------------------------ lógica
+
+    private void procesar(Tecla tecla) {
+        if (mostrandoError) {
+            limpiarError();
+        }
+        switch (tecla.tipo) {
+            case IGUAL:
                 evaluar();
                 return;
-            case "C":
-                display.setText("");
+            case MODO:
+                cambiarModo();
+                return;
+            case SIGNO:
+                cambiarSigno();
+                return;
+            default:
                 break;
-            case "DEL":
-                if (!currentText.isEmpty()) {
-                    display.setText(currentText.substring(0, currentText.length() - 1));
+        }
+
+        if (mostrandoResultado) {
+            prepararTrasResultado(tecla);
+        }
+        String actual = display.getText();
+
+        switch (tecla.tipo) {
+            case LIMPIAR:
+                display.setText("");
+                infoLabel.setText(" ");
+                break;
+            case BORRAR:
+                Matcher m = TOKEN_FINAL.matcher(actual);
+                if (m.find()) {
+                    display.setText(actual.substring(0, m.start()));
+                } else if (!actual.isEmpty()) {
+                    display.setText(actual.substring(0, actual.length() - 1));
                 }
                 break;
-            case "sin":
-            case "cos":
-            case "tan":
-            case "sqrt":
-            case "log":
-            case "ln":
-                display.setText(currentText + command + "(");
-                break;
             default:
-                display.setText(currentText + command);
+                display.setText(actual + tecla.token);
                 break;
         }
         mostrandoResultado = false;
@@ -136,20 +375,15 @@ public class StandardPanel extends JPanel {
 
     /**
      * Decide qué hacer con el resultado que está en pantalla cuando se pulsa
-     * un nuevo botón: un operador continúa la operación usando el resultado,
+     * una nueva tecla: un operador continúa la operación usando el resultado,
      * cualquier otra entrada empieza una operación nueva.
      */
-    private void prepararTrasResultado(String command) {
+    private void prepararTrasResultado(Tecla tecla) {
         String resultado = display.getText();
-        boolean esOperador = command.matches("[+\\-*/^]");
-
-        if (command.equals("=")) {
-            return;
-        }
-        if (esOperador && FormatoNumero.esNumero(resultado)) {
+        if (tecla.tipo == Tipo.OPERADOR && FormatoNumero.esNumero(resultado)) {
             // Un negativo se envuelve en paréntesis para que "-4" seguido de "^2" sea 16 y no -16
             if (resultado.startsWith("-")) {
-                display.setText("(" + resultado + ")");
+                display.setText("(" + resultado.replace('-', '−') + ")");
             }
             return;
         }
@@ -161,14 +395,100 @@ public class StandardPanel extends JPanel {
         if (expr.isEmpty() || mostrandoResultado) {
             return;
         }
+        expr = cerrarParentesis(expr);
         try {
-            double result = EvaluadorMath.evaluar(expr);
-            display.setText(FormatoNumero.formatear(result));
+            double result = EvaluadorMath.evaluar(expr, modo, ans);
+            String texto = FormatoNumero.formatear(result);
+            mostrarInfo(expr + " =", false);
+            display.setText(texto);
             mostrandoResultado = true;
+            if (Double.isFinite(result)) {
+                ans = result;
+            }
         } catch (ArithmeticException ex) {
-            JOptionPane.showMessageDialog(this, "No se puede dividir entre cero.", "Error matemático", JOptionPane.WARNING_MESSAGE);
+            mostrarError("No se puede dividir entre cero");
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, "Expresión inválida. Revisa los operadores y paréntesis.", "Error de sintaxis", JOptionPane.WARNING_MESSAGE);
+            mostrarError(describirError(ex));
         }
+    }
+
+    /** Agrega los paréntesis de cierre que falten: "sin(30" se evalúa como "sin(30)". */
+    private static String cerrarParentesis(String expr) {
+        int abiertos = 0;
+        for (char c : expr.toCharArray()) {
+            if (c == '(') {
+                abiertos++;
+            } else if (c == ')') {
+                abiertos--;
+            }
+        }
+        StringBuilder sb = new StringBuilder(expr);
+        for (int i = 0; i < abiertos; i++) {
+            sb.append(')');
+        }
+        return sb.toString();
+    }
+
+    private static String describirError(IllegalArgumentException ex) {
+        String msg = ex.getMessage() == null ? "" : ex.getMessage();
+        if (msg.contains("Unknown function or variable")) {
+            Matcher m = Pattern.compile("'([^']*)'").matcher(msg);
+            return m.find() ? "No reconozco \"" + m.group(1) + "\"" : "Función o variable desconocida";
+        }
+        if (msg.startsWith(EvaluadorMath.PARENTESIS_DESBALANCEADOS)) {
+            return "Los paréntesis no están balanceados";
+        }
+        return "Expresión incompleta o inválida";
+    }
+
+    private void cambiarModo() {
+        modo = (modo == ModoAngular.RADIANES) ? ModoAngular.GRADOS : ModoAngular.RADIANES;
+        botonModo.setText(modo == ModoAngular.RADIANES ? "RAD" : "DEG");
+        botonModo.setToolTipText(modo == ModoAngular.RADIANES ? "Ángulos en radianes. Clic para usar grados"
+                : "Ángulos en grados. Clic para usar radianes");
+        mostrarInfo(modo == ModoAngular.RADIANES ? "Modo radianes" : "Modo grados", false);
+    }
+
+    /** Cambia el signo del último número escrito, o del resultado mostrado. */
+    private void cambiarSigno() {
+        String actual = display.getText();
+        if (mostrandoResultado) {
+            if (FormatoNumero.esNumero(actual) && !actual.equals("0")) {
+                display.setText(actual.startsWith("-") ? actual.substring(1) : "-" + actual);
+                ans = -ans;
+            }
+            return;
+        }
+        Matcher m = NUMERO_FINAL.matcher(actual);
+        if (!m.find()) {
+            display.setText(actual + "−");
+            return;
+        }
+        String numero = m.group(2);
+        boolean yaNegado = m.group(1) != null && m.group(3) != null;
+        String reemplazo = yaNegado ? numero : "(−" + numero + ")";
+        int inicio = yaNegado ? m.start() : m.start(2);
+        int fin = yaNegado ? m.end() : m.end(2);
+        display.setText(actual.substring(0, inicio) + reemplazo + actual.substring(fin));
+    }
+
+    // ------------------------------------------------------------------ mensajes
+
+    private void mostrarInfo(String texto, boolean error) {
+        infoLabel.setText(texto);
+        infoLabel.setForeground(error ? COLOR_ERROR : COLOR_INFO);
+    }
+
+    private void mostrarError(String mensaje) {
+        mostrarInfo(mensaje, true);
+        display.setBorder(bordeDisplayError);
+        mostrandoError = true;
+    }
+
+    private void limpiarError() {
+        infoLabel.setText(" ");
+        infoLabel.setForeground(COLOR_INFO);
+        display.setBorder(bordeDisplay);
+        mostrandoError = false;
     }
 }
