@@ -1,6 +1,7 @@
 package com.calculadora.gui;
 
 import com.calculadora.math.EvaluadorMath;
+import com.formdev.flatlaf.FlatClientProperties;
 import net.objecthunter.exp4j.Expression;
 import org.knowm.xchart.XChartPanel;
 import org.knowm.xchart.XYChart;
@@ -8,6 +9,8 @@ import org.knowm.xchart.XYChartBuilder;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
@@ -19,9 +22,11 @@ public class GraphPanel extends JPanel {
     private JTextField minXInput;
     private JTextField maxXInput;
     private JPanel chartContainer;
-    
+    private JLabel estadoLabel;
+
     private final Color COLOR_BG = new Color(40, 42, 44);
     private final Color COLOR_BTN = new Color(156, 39, 176); // Púrpura moderno
+    private final Color COLOR_ERROR = new Color(255, 99, 99);
 
     public GraphPanel() {
         setLayout(new BorderLayout());
@@ -30,7 +35,7 @@ public class GraphPanel extends JPanel {
         // Panel superior de controles
         JPanel controlPanel = new JPanel(new GridBagLayout());
         controlPanel.setBackground(COLOR_BG);
-        controlPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        controlPanel.setBorder(new EmptyBorder(20, 20, 0, 20));
         
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 10, 5, 10);
@@ -44,8 +49,11 @@ public class GraphPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 0;
         controlPanel.add(lblFunc, gbc);
 
-        funcInput = new JTextField("sin(x)*x", 20);
-        funcInput.setFont(inputFont);
+        funcInput = crearCampo("sin(x)*x", 20, "ej: x^2 - 3*x + 1", inputFont);
+        // Al cambiar de pestaña no se selecciona todo el texto de la función
+        funcInput.putClientProperty(FlatClientProperties.SELECT_ALL_ON_FOCUS_POLICY,
+                FlatClientProperties.SELECT_ALL_ON_FOCUS_POLICY_NEVER);
+        funcInput.setToolTipText("Usa x como variable. Ej: sin(x), x^2, ln(x), 1/x");
         gbc.gridx = 1; gbc.gridy = 0; gbc.gridwidth = 5;
         controlPanel.add(funcInput, gbc);
 
@@ -54,8 +62,8 @@ public class GraphPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
         controlPanel.add(lblMin, gbc);
 
-        minXInput = new JTextField("-10", 5);
-        minXInput.setFont(inputFont);
+        minXInput = crearCampo("-10", 5, "-10", inputFont);
+        minXInput.setToolTipText("Número o expresión, ej: -2*pi");
         gbc.gridx = 1; gbc.gridy = 1;
         controlPanel.add(minXInput, gbc);
 
@@ -64,8 +72,8 @@ public class GraphPanel extends JPanel {
         gbc.gridx = 2; gbc.gridy = 1;
         controlPanel.add(lblMax, gbc);
 
-        maxXInput = new JTextField("10", 5);
-        maxXInput.setFont(inputFont);
+        maxXInput = crearCampo("10", 5, "10", inputFont);
+        maxXInput.setToolTipText("Número o expresión, ej: 2*pi");
         gbc.gridx = 3; gbc.gridy = 1;
         controlPanel.add(maxXInput, gbc);
 
@@ -80,6 +88,13 @@ public class GraphPanel extends JPanel {
         gbc.gridx = 4; gbc.gridy = 1; gbc.gridwidth = 2;
         controlPanel.add(plotBtn, gbc);
 
+        // Línea de estado: muestra los errores sin abrir ventanas emergentes
+        estadoLabel = new JLabel(" ");
+        estadoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        estadoLabel.setForeground(COLOR_ERROR);
+        gbc.gridx = 1; gbc.gridy = 2; gbc.gridwidth = 5;
+        controlPanel.add(estadoLabel, gbc);
+
         add(controlPanel, BorderLayout.NORTH);
 
         // Contenedor de la gráfica
@@ -92,25 +107,46 @@ public class GraphPanel extends JPanel {
         SwingUtilities.invokeLater(() -> plotFunction(null));
     }
 
+    private JTextField crearCampo(String valor, int columnas, String ejemplo, Font fuente) {
+        JTextField campo = new JTextField(valor, columnas);
+        campo.setFont(fuente);
+        campo.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, ejemplo);
+        campo.addActionListener(this::plotFunction); // Enter traza la gráfica
+        // Al corregir el campo se quita el contorno rojo de error
+        campo.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                marcarError(campo, false);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                marcarError(campo, false);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+            }
+        });
+        return campo;
+    }
+
     private void plotFunction(ActionEvent e) {
+        limpiarErrores();
         String func = funcInput.getText().trim();
-        double minX;
-        double maxX;
-        try {
-            // Se aceptan expresiones como "-2*pi" o "pi/2" además de números
-            minX = EvaluadorMath.evaluar(minXInput.getText());
-            maxX = EvaluadorMath.evaluar(maxXInput.getText());
-        } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(this, "Límites de X inválidos.", "Error", JOptionPane.ERROR_MESSAGE);
+
+        // Se aceptan expresiones como "-2*pi" o "pi/2" además de números
+        Double minX = leerLimite(minXInput, "X Mín");
+        if (minX == null) {
             return;
         }
-
-        if (!Double.isFinite(minX) || !Double.isFinite(maxX)) {
-            JOptionPane.showMessageDialog(this, "Los límites de X deben ser números finitos.", "Error", JOptionPane.ERROR_MESSAGE);
+        Double maxX = leerLimite(maxXInput, "X Máx");
+        if (maxX == null) {
             return;
         }
         if (minX >= maxX) {
-            JOptionPane.showMessageDialog(this, "El límite mínimo debe ser menor al máximo.", "Error", JOptionPane.ERROR_MESSAGE);
+            mostrarError("X Mín debe ser menor que X Máx.", minXInput);
+            marcarError(maxXInput, true);
             return;
         }
 
@@ -118,21 +154,20 @@ public class GraphPanel extends JPanel {
         try {
             expresion = EvaluadorMath.compilar(func, "x");
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, "Sintaxis inválida en la función.", "Error", JOptionPane.ERROR_MESSAGE);
+            mostrarError(func.isEmpty() ? "Escribe una función de x, por ejemplo sin(x)."
+                    : "Sintaxis inválida en la función. Usa x como variable.", funcInput);
             return;
         }
 
-        int points = 800; // Más puntos para mayor suavidad
-        List<Double> xData = new ArrayList<>(points + 16);
-        List<Double> yData = new ArrayList<>(points + 16);
-        double step = (maxX - minX) / (points - 1);
+        double[] muestras = generarMuestras(minX, maxX, 800); // más puntos, curva más suave
+        List<Double> xData = new ArrayList<>(muestras.length + 16);
+        List<Double> yData = new ArrayList<>(muestras.length + 16);
         boolean hasValidPoints = false;
         double prevX = Double.NaN;
         double prevY = Double.NaN;
 
         try {
-            for (int i = 0; i < points; i++) {
-                double x = minX + i * step;
+            for (double x : muestras) {
                 double y = evaluarSeguro(expresion, x);
 
                 // Si entre dos puntos hay una asíntota (p. ej. 1/x en 0) se corta la línea
@@ -148,14 +183,12 @@ public class GraphPanel extends JPanel {
                 prevY = y;
             }
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, "Sintaxis inválida en la función.", "Error", JOptionPane.ERROR_MESSAGE);
+            mostrarError("Expresión incompleta en la función. Revisa operadores y paréntesis.", funcInput);
             return;
         }
 
         if (!hasValidPoints) {
-            if (e != null) {
-                JOptionPane.showMessageDialog(this, "La función no produjo puntos reales en este rango.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-            }
+            mostrarError("La función no tiene valores reales entre X Mín y X Máx.", funcInput);
             return;
         }
 
@@ -184,6 +217,53 @@ public class GraphPanel extends JPanel {
         chartContainer.add(new XChartPanel<>(chart), BorderLayout.CENTER);
         chartContainer.revalidate();
         chartContainer.repaint();
+    }
+
+    /**
+     * Puntos de muestreo uniformes en [min, max] más uno extra a mitad del primer
+     * intervalo. XChart alinea las marcas del eje X a los datos cuando estos están
+     * espaciados exactamente igual (y salen valores como -3.41, -2.83...); con ese
+     * punto adicional calcula marcas redondas (-10, -5, 0, 5, 10).
+     */
+    private static double[] generarMuestras(double min, double max, int cantidad) {
+        double paso = (max - min) / (cantidad - 1);
+        double[] muestras = new double[cantidad + 1];
+        muestras[0] = min;
+        muestras[1] = min + paso / 2;
+        for (int i = 1; i < cantidad; i++) {
+            muestras[i + 1] = min + i * paso;
+        }
+        return muestras;
+    }
+
+    private Double leerLimite(JTextField campo, String nombre) {
+        try {
+            double valor = EvaluadorMath.evaluar(campo.getText());
+            if (Double.isFinite(valor)) {
+                return valor;
+            }
+        } catch (RuntimeException ex) {
+            // se informa abajo
+        }
+        mostrarError(nombre + " debe ser un número o una expresión como -2*pi.", campo);
+        return null;
+    }
+
+    private void mostrarError(String mensaje, JTextField campo) {
+        estadoLabel.setText(mensaje);
+        marcarError(campo, true);
+        campo.requestFocusInWindow();
+    }
+
+    private void limpiarErrores() {
+        estadoLabel.setText(" ");
+        marcarError(funcInput, false);
+        marcarError(minXInput, false);
+        marcarError(maxXInput, false);
+    }
+
+    private static void marcarError(JTextField campo, boolean error) {
+        campo.putClientProperty(FlatClientProperties.OUTLINE, error ? FlatClientProperties.OUTLINE_ERROR : null);
     }
 
     /** Evalúa f(x) devolviendo NaN cuando el punto no tiene un valor real finito. */
