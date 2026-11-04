@@ -1,44 +1,141 @@
-# Calculadora Avanzada en Java
+<div align="center">
 
-Este proyecto consiste en una calculadora científica y gráfica desarrollada en Java, estructurada bajo el patrón de diseño Modelo-Vista-Controlador (MVC) y gestionada a través de Maven. La aplicación ofrece una interfaz de usuario moderna, capacidades de evaluación matemática compleja y funciones de cálculo numérico avanzadas.
+# 🧮 Calculadora Avanzada en Java
 
-## Caracteristicas Principales
+**Calculadora científica, gráfica y de cálculo numérico hecha con Java Swing**
 
-- **Modo Estándar y Científico**: Evaluación de expresiones matemáticas complejas respetando la jerarquía de operaciones, uso de paréntesis, funciones trigonométricas, logaritmos y raíces.
-- **Modo Gráfico (2D)**: Capacidad de renderizar funciones matematicas f(x) en un plano cartesiano interactivo especificando limites.
-- **Cálculo Numérico**: 
-  - Cálculo de integrales definidas utilizando la Regla de Simpson.
-  - Cálculo de derivadas evaluadas en un punto especifico mediante el metodo de diferencias finitas centrales.
-- **Interfaz Moderna**: Diseno renovado utilizando FlatLaf con un tema oscuro (Dark Mode), optimizado para una mejor experiencia de usuario (UX).
+![Java](https://img.shields.io/badge/Java-8%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+![Maven](https://img.shields.io/badge/Maven-3.6%2B-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
+![Swing](https://img.shields.io/badge/UI-Swing%20%2B%20FlatLaf-4A90E2?style=for-the-badge)
+![NetBeans](https://img.shields.io/badge/NetBeans-compatible-1B6AC6?style=for-the-badge&logo=apachenetbeanside&logoColor=white)
 
-## Arquitectura
+<img src="docs/img/estandar.png" alt="Modo estándar / científico" width="720">
 
-El proyecto esta organizado bajo el patron MVC:
-- **Modelo**: Clases encargas de la logica (`EvaluadorMath`, `Calculus`).
-- **Vista y Controlador**: Paneles de la interfaz grafica de usuario (`MainFrame`, `StandardPanel`, `GraphPanel`, `CalculusPanel`) que reaccionan a los eventos del usuario y solicitan informacion al modelo.
+</div>
 
-## Tecnologias y Librerias
+---
 
-- **Java 8+**
-- **Maven**: Gestor de dependencias y construccion del proyecto.
-- **exp4j**: Motor de evaluacion de expresiones matematicas.
-- **XChart**: Libreria ligera para la creacion de graficos cartesianos.
-- **FlatLaf**: Biblioteca de "Look and Feel" para una interfaz Swing moderna.
+## 📖 Descripción
 
-## Requisitos
+Aplicación de escritorio que reúne en una sola ventana tres herramientas matemáticas:
 
-- Java Development Kit (JDK) 8 o superior.
-- Maven 3.6 o superior (opcional si se utiliza un IDE que lo integre automaticamente).
+1. **Calculadora estándar / científica** con jerarquía de operaciones y paréntesis.
+2. **Graficador 2D** de funciones `f(x)` en un intervalo definido por el usuario.
+3. **Cálculo numérico**: derivada en un punto e integral definida.
 
-## Instalacion y Ejecucion
+El proyecto sigue una separación tipo **MVC** (lógica matemática por un lado, interfaz por otro) y se gestiona con **Maven**, así que se abre directamente en NetBeans, IntelliJ IDEA, Eclipse o VS Code.
 
-1. Clonar el repositorio.
-2. Abrir el proyecto en un Entorno de Desarrollo Integrado (IDE) compatible con Java y Maven (como IntelliJ IDEA, Eclipse, NetBeans o VS Code).
-3. Permitir que el IDE descargue las dependencias definidas en el archivo `pom.xml`.
-4. Ejecutar la clase principal ubicada en: `src/main/java/com/calculadora/main/Main.java`.
+## ✨ Características
 
-Si se desea compilar y ejecutar desde la terminal (teniendo Maven instalado):
+| Módulo | Qué hace |
+|---|---|
+| **Estándar / Científica** | Operaciones `+ - * / ^`, paréntesis, `sin`, `cos`, `tan`, `sqrt`, `log`, constantes `pi` y `e`. |
+| **Gráficas** | Dibuja cualquier `f(x)` entre un `X mín` y un `X máx` con 800 puntos de muestreo. |
+| **Derivada** | Derivada numérica en un punto mediante **diferencias finitas centrales**. |
+| **Integral definida** | Integral en `[a, b]` mediante la **regla de Simpson 1/3** (1000 subintervalos). |
+| **Tema oscuro** | Interfaz moderna con **FlatLaf** (Dark). |
+
+## 📸 Capturas
+
+<table>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="docs/img/graficas.png" alt="Graficador de funciones" width="720"><br>
+      <sub><b>Graficador</b> — f(x) = sin(x)·x en [-10, 10]</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/img/derivada.png" alt="Derivada numérica" width="360"><br>
+      <sub><b>Derivada</b> — f(x) = x³ − 2x evaluada en x = 2</sub>
+    </td>
+    <td align="center">
+      <img src="docs/img/integral.png" alt="Integral definida" width="360"><br>
+      <sub><b>Integral</b> — ∫ sin(x) dx de 0 a π = 2</sub>
+    </td>
+  </tr>
+</table>
+
+## 🏗️ Arquitectura
+
+```
+src/main/java/com/calculadora
+├── main
+│   └── Main.java            → Punto de entrada, aplica el tema FlatLaf
+├── math                     → Modelo (lógica pura)
+│   ├── EvaluadorMath.java   → Evalúa expresiones y funciones f(x)
+│   └── Calculus.java        → Derivada (diferencias centrales) e integral (Simpson)
+└── gui                      → Vista / Controlador
+    ├── MainFrame.java       → Ventana principal con pestañas
+    ├── StandardPanel.java   → Teclado y pantalla de la calculadora
+    ├── GraphPanel.java      → Controles y gráfica de f(x)
+    └── CalculusPanel.java   → Pestañas de derivada e integral
+```
+
+## 🛠️ Tecnologías
+
+- **Java 8+** — lenguaje base.
+- **Maven** — dependencias y empaquetado.
+- **[exp4j](https://www.objecthunter.net/exp4j/)** — motor de evaluación de expresiones.
+- **[XChart](https://knowm.org/open-source/xchart/)** — gráficos cartesianos.
+- **[FlatLaf](https://www.formdev.com/flatlaf/)** — Look and Feel moderno para Swing.
+
+## 🚀 Instalación y ejecución
+
+### Requisitos
+
+- JDK 8 o superior.
+- Maven 3.6+ (no es necesario si usas NetBeans o IntelliJ, ya lo traen integrado).
+
+### Opción 1 — NetBeans
+
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/AcuLuis/Calculadora_Java.git
+   ```
+2. En NetBeans: **File → Open Project…** y selecciona la carpeta `Calculadora_Java` (se reconoce como proyecto Maven).
+3. Espera a que se descarguen las dependencias.
+4. Pulsa **Run Project (F6)**. Si te pide la clase principal, elige `com.calculadora.main.Main`.
+
+### Opción 2 — Terminal
+
 ```bash
 mvn clean package
-java -cp target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar com.calculadora.main.Main
+java -jar target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
+
+## ✍️ Sintaxis de las expresiones
+
+| Escribe | Significa |
+|---|---|
+| `2^3` | Potencia (2³) |
+| `sqrt(x)` | Raíz cuadrada |
+| `sin(x)`, `cos(x)`, `tan(x)` | Trigonométricas (en **radianes**) |
+| `log(x)` | Logaritmo **natural** (ln) |
+| `log10(x)`, `log2(x)` | Logaritmo en base 10 y base 2 |
+| `abs(x)`, `exp(x)`, `cbrt(x)` | Valor absoluto, eˣ, raíz cúbica |
+| `pi`, `e` | Constantes π y e |
+| `2pi`, `3(x+1)` | Multiplicación implícita |
+
+> 💡 En los modos **Gráficas** y **Cálculo Numérico** la variable debe llamarse `x`.
+
+---
+
+<div align="center">
+
+## ⭐ ¿Te gustó el proyecto?
+
+Si esta calculadora te fue útil, te ayudó a estudiar o simplemente te pareció interesante,<br>
+**regálame una estrella** en GitHub. Es gratis, toma un segundo y me motiva muchísimo a seguir mejorándola. 🙌
+
+<a href="https://github.com/AcuLuis/Calculadora_Java/stargazers">
+  <img src="https://img.shields.io/github/stars/AcuLuis/Calculadora_Java?style=for-the-badge&logo=github&label=Dale%20una%20estrella&color=FFD700" alt="Dale una estrella">
+</a>
+
+¿Encontraste un error o tienes una idea? Abre un [issue](https://github.com/AcuLuis/Calculadora_Java/issues) — toda sugerencia es bienvenida.
+
+<br>
+
+Hecho con ☕ y Java por **[Luis Antonio Acuña Ayala](https://github.com/AcuLuis)**
+
+</div>
