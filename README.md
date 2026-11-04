@@ -29,9 +29,9 @@ El proyecto sigue una separación tipo **MVC** (lógica matemática por un lado,
 
 | Módulo | Qué hace |
 |---|---|
-| **Estándar / Científica** | Operaciones `+ - * / ^`, paréntesis, `sin`, `cos`, `tan`, `sqrt`, `log`, constantes `pi` y `e`. |
-| **Gráficas** | Dibuja cualquier `f(x)` entre un `X mín` y un `X máx` con 800 puntos de muestreo. |
-| **Derivada** | Derivada numérica en un punto mediante **diferencias finitas centrales**. |
+| **Estándar / Científica** | Operaciones `+ - * / ^`, paréntesis, `sin`, `cos`, `tan`, `sqrt`, `log`, `ln`, constantes `pi` y `e`. Resultados limpios (`0.1+0.2 = 0.3`) y notación científica para números muy grandes o pequeños. |
+| **Gráficas** | Dibuja cualquier `f(x)` entre un `X mín` y un `X máx` con 800 puntos de muestreo. Deja huecos donde la función no existe y corta la línea en las asíntotas (`1/x`, `tan(x)`). |
+| **Derivada** | Derivada numérica en un punto mediante **diferencias finitas centrales** con paso adaptado a la magnitud de `x`. |
 | **Integral definida** | Integral en `[a, b]` mediante la **regla de Simpson 1/3** (1000 subintervalos). |
 | **Tema oscuro** | Interfaz moderna con **FlatLaf** (Dark). |
 
@@ -64,6 +64,7 @@ src/main/java/com/calculadora
 │   └── Main.java            → Punto de entrada, aplica el tema FlatLaf
 ├── math                     → Modelo (lógica pura)
 │   ├── EvaluadorMath.java   → Evalúa expresiones y funciones f(x)
+│   ├── FormatoNumero.java   → Presenta los resultados de forma legible
 │   └── Calculus.java        → Derivada (diferencias centrales) e integral (Simpson)
 └── gui                      → Vista / Controlador
     ├── MainFrame.java       → Ventana principal con pestañas
@@ -111,13 +112,14 @@ java -jar target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar
 | `2^3` | Potencia (2³) |
 | `sqrt(x)` | Raíz cuadrada |
 | `sin(x)`, `cos(x)`, `tan(x)` | Trigonométricas (en **radianes**) |
-| `log(x)` | Logaritmo **natural** (ln) |
-| `log10(x)`, `log2(x)` | Logaritmo en base 10 y base 2 |
+| `log(x)` | Logaritmo en **base 10** |
+| `ln(x)` | Logaritmo **natural** |
+| `log2(x)` | Logaritmo en base 2 |
 | `abs(x)`, `exp(x)`, `cbrt(x)` | Valor absoluto, eˣ, raíz cúbica |
 | `pi`, `e` | Constantes π y e |
 | `2pi`, `3(x+1)` | Multiplicación implícita |
 
-> 💡 En los modos **Gráficas** y **Cálculo Numérico** la variable debe llamarse `x`.
+> 💡 En los modos **Gráficas** y **Cálculo Numérico** la variable debe llamarse `x`. Los límites y el punto de evaluación también aceptan expresiones, por ejemplo `pi/2` o `-2*pi`.
 
 ---
 
