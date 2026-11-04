@@ -1,6 +1,7 @@
 package com.calculadora.gui;
 
 import com.calculadora.math.EvaluadorMath;
+import net.objecthunter.exp4j.Expression;
 import org.knowm.xchart.XChartPanel;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
@@ -9,6 +10,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 public class GraphPanel extends JPanel {
 
@@ -90,50 +93,70 @@ public class GraphPanel extends JPanel {
     }
 
     private void plotFunction(ActionEvent e) {
-        String func = funcInput.getText();
+        String func = funcInput.getText().trim();
         double minX;
         double maxX;
         try {
-            minX = Double.parseDouble(minXInput.getText());
-            maxX = Double.parseDouble(maxXInput.getText());
-        } catch (NumberFormatException ex) {
+            // Se aceptan expresiones como "-2*pi" o "pi/2" además de números
+            minX = EvaluadorMath.evaluar(minXInput.getText());
+            maxX = EvaluadorMath.evaluar(maxXInput.getText());
+        } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Límites de X inválidos.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
+        if (!Double.isFinite(minX) || !Double.isFinite(maxX)) {
+            JOptionPane.showMessageDialog(this, "Los límites de X deben ser números finitos.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         if (minX >= maxX) {
             JOptionPane.showMessageDialog(this, "El límite mínimo debe ser menor al máximo.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        int points = 800; // Más puntos para mayor suavidad
-        double[] xData = new double[points];
-        double[] yData = new double[points];
-        double step = (maxX - minX) / (points - 1);
-        boolean hasValidPoints = false;
-
-        for (int i = 0; i < points; i++) {
-            double x = minX + i * step;
-            xData[i] = x;
-            try {
-                double y = EvaluadorMath.evaluarFuncion(func, x);
-                // Evitar NaN e Infinity en las gráficas
-                if (Double.isNaN(y) || Double.isInfinite(y)) {
-                    yData[i] = 0; 
-                } else {
-                    yData[i] = y;
-                    hasValidPoints = true;
-                }
-            } catch (Exception ex) {
-                if (e != null) { // Solo mostrar error si fue provocado por el botón
-                    JOptionPane.showMessageDialog(this, "Sintaxis inválida en la función.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-                return;
-            }
+        Expression expresion;
+        try {
+            expresion = EvaluadorMath.compilar(func, "x");
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, "Sintaxis inválida en la función.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
 
-        if (!hasValidPoints && e != null) {
-            JOptionPane.showMessageDialog(this, "La función no produjo puntos reales en este rango.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+        int points = 800; // Más puntos para mayor suavidad
+        List<Double> xData = new ArrayList<>(points + 16);
+        List<Double> yData = new ArrayList<>(points + 16);
+        double step = (maxX - minX) / (points - 1);
+        boolean hasValidPoints = false;
+        double prevX = Double.NaN;
+        double prevY = Double.NaN;
+
+        try {
+            for (int i = 0; i < points; i++) {
+                double x = minX + i * step;
+                double y = evaluarSeguro(expresion, x);
+
+                // Si entre dos puntos hay una asíntota (p. ej. 1/x en 0) se corta la línea
+                if (!Double.isNaN(y) && !Double.isNaN(prevY) && hayAsintota(expresion, prevX, prevY, x, y)) {
+                    xData.add((prevX + x) / 2);
+                    yData.add(Double.NaN);
+                }
+
+                xData.add(x);
+                yData.add(y); // NaN deja un hueco en la gráfica en vez de dibujar un 0 falso
+                hasValidPoints |= !Double.isNaN(y);
+                prevX = x;
+                prevY = y;
+            }
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, "Sintaxis inválida en la función.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!hasValidPoints) {
+            if (e != null) {
+                JOptionPane.showMessageDialog(this, "La función no produjo puntos reales en este rango.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            }
+            return;
         }
 
         // Configurar estilo de XChart
@@ -152,6 +175,7 @@ public class GraphPanel extends JPanel {
         chart.getStyler().setAxisTickLabelsColor(Color.LIGHT_GRAY);
         chart.getStyler().setLegendVisible(false);
         chart.getStyler().setMarkerSize(0);
+        chart.getStyler().setXAxisDecimalPattern("#.##"); // evita etiquetas como -6.39549436795995
         chart.getStyler().setSeriesColors(new Color[] { new Color(0, 200, 255) }); // Línea azul neón
 
         chart.addSeries(func, xData, yData);
@@ -160,5 +184,28 @@ public class GraphPanel extends JPanel {
         chartContainer.add(new XChartPanel<>(chart), BorderLayout.CENTER);
         chartContainer.revalidate();
         chartContainer.repaint();
+    }
+
+    /** Evalúa f(x) devolviendo NaN cuando el punto no tiene un valor real finito. */
+    private static double evaluarSeguro(Expression expresion, double x) {
+        try {
+            double y = expresion.setVariable("x", x).evaluate();
+            return Double.isFinite(y) ? y : Double.NaN;
+        } catch (ArithmeticException ex) {
+            return Double.NaN; // división entre cero en este punto
+        }
+    }
+
+    /**
+     * Detecta un polo entre dos puntos consecutivos: si la función cambia de signo
+     * y en el punto medio su magnitud es mayor que en ambos extremos, no es un
+     * cruce continuo por cero sino una asíntota vertical.
+     */
+    private static boolean hayAsintota(Expression expresion, double x1, double y1, double x2, double y2) {
+        if (y1 * y2 >= 0) {
+            return false;
+        }
+        double yMedio = evaluarSeguro(expresion, (x1 + x2) / 2);
+        return Double.isNaN(yMedio) || Math.abs(yMedio) > Math.max(Math.abs(y1), Math.abs(y2));
     }
 }

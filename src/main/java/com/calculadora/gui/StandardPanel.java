@@ -1,6 +1,7 @@
 package com.calculadora.gui;
 
 import com.calculadora.math.EvaluadorMath;
+import com.calculadora.math.FormatoNumero;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -10,7 +11,8 @@ import java.awt.event.ActionEvent;
 public class StandardPanel extends JPanel {
 
     private JTextField display;
-    
+    private boolean mostrandoResultado = false;
+
     // Colores para el diseño
     private final Color COLOR_BG = new Color(30, 30, 30);
     private final Color COLOR_DISPLAY_BG = new Color(20, 20, 20);
@@ -51,7 +53,7 @@ public class StandardPanel extends JPanel {
             "4", "5", "6", "-", "cos",
             "1", "2", "3", "+", "tan",
             "0", ".", "sqrt", "^", "log",
-            "pi", "e", "", "", "="
+            "pi", "e", "ln", "", "="
         };
 
         for (String text : buttons) {
@@ -99,12 +101,16 @@ public class StandardPanel extends JPanel {
 
     private void onButtonClicked(ActionEvent e) {
         String command = ((JButton) e.getSource()).getText();
+
+        if (mostrandoResultado) {
+            prepararTrasResultado(command);
+        }
         String currentText = display.getText();
 
         switch (command) {
             case "=":
                 evaluar();
-                break;
+                return;
             case "C":
                 display.setText("");
                 break;
@@ -118,25 +124,51 @@ public class StandardPanel extends JPanel {
             case "tan":
             case "sqrt":
             case "log":
+            case "ln":
                 display.setText(currentText + command + "(");
                 break;
             default:
                 display.setText(currentText + command);
                 break;
         }
+        mostrandoResultado = false;
+    }
+
+    /**
+     * Decide qué hacer con el resultado que está en pantalla cuando se pulsa
+     * un nuevo botón: un operador continúa la operación usando el resultado,
+     * cualquier otra entrada empieza una operación nueva.
+     */
+    private void prepararTrasResultado(String command) {
+        String resultado = display.getText();
+        boolean esOperador = command.matches("[+\\-*/^]");
+
+        if (command.equals("=")) {
+            return;
+        }
+        if (esOperador && FormatoNumero.esNumero(resultado)) {
+            // Un negativo se envuelve en paréntesis para que "-4" seguido de "^2" sea 16 y no -16
+            if (resultado.startsWith("-")) {
+                display.setText("(" + resultado + ")");
+            }
+            return;
+        }
+        display.setText("");
     }
 
     private void evaluar() {
+        String expr = display.getText();
+        if (expr.isEmpty() || mostrandoResultado) {
+            return;
+        }
         try {
-            String expr = display.getText();
-            if (expr.isEmpty()) return;
             double result = EvaluadorMath.evaluar(expr);
-            if (result == (long) result)
-                display.setText(String.format("%d", (long) result));
-            else
-                display.setText(String.format("%s", result));
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Expresión inválida", "Error de Sintaxis", JOptionPane.WARNING_MESSAGE);
+            display.setText(FormatoNumero.formatear(result));
+            mostrandoResultado = true;
+        } catch (ArithmeticException ex) {
+            JOptionPane.showMessageDialog(this, "No se puede dividir entre cero.", "Error matemático", JOptionPane.WARNING_MESSAGE);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, "Expresión inválida. Revisa los operadores y paréntesis.", "Error de sintaxis", JOptionPane.WARNING_MESSAGE);
         }
     }
 }

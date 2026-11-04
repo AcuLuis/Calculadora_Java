@@ -1,6 +1,8 @@
 package com.calculadora.gui;
 
 import com.calculadora.math.Calculus;
+import com.calculadora.math.EvaluadorMath;
+import com.calculadora.math.FormatoNumero;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -21,6 +23,10 @@ public class CalculusPanel extends JPanel {
     
     private final Color COLOR_BG = new Color(40, 42, 44);
     private final Color COLOR_BTN = new Color(33, 150, 243); // Azul moderno
+
+    // Dígitos significativos que se muestran según la precisión de cada método numérico
+    private static final int DIGITOS_DERIVADA = 9;
+    private static final int DIGITOS_INTEGRAL = 10;
 
     public CalculusPanel() {
         setLayout(new BorderLayout());
@@ -149,25 +155,58 @@ public class CalculusPanel extends JPanel {
     }
 
     private void calculateDerivative(ActionEvent e) {
+        Double x = leerValor(pointInput, "el punto x");
+        if (x == null) {
+            return;
+        }
         try {
-            String func = funcInput.getText();
-            double x = Double.parseDouble(pointInput.getText());
-            double res = Calculus.derivada(func, x);
-            derivativeResult.setText(String.format("Resultado: %.6f", res));
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Sintaxis o valor incorrecto.", "Error", JOptionPane.ERROR_MESSAGE);
+            double res = Calculus.derivada(funcInput.getText(), x);
+            derivativeResult.setText("Resultado: " + FormatoNumero.formatear(res, DIGITOS_DERIVADA));
+        } catch (ArithmeticException ex) {
+            mostrarError("La función no está definida cerca de x = " + FormatoNumero.formatear(x) + ".");
+        } catch (IllegalArgumentException ex) {
+            mostrarError("Sintaxis inválida en la función f(x).");
         }
     }
 
     private void calculateIntegral(ActionEvent e) {
-        try {
-            String func = funcIntegralInput.getText();
-            double a = Double.parseDouble(limitA.getText());
-            double b = Double.parseDouble(limitB.getText());
-            double res = Calculus.integral(func, a, b, 1000); 
-            integralResult.setText(String.format("Resultado: %.6f", res));
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Sintaxis o límites incorrectos.", "Error", JOptionPane.ERROR_MESSAGE);
+        Double a = leerValor(limitA, "el límite inferior (a)");
+        if (a == null) {
+            return;
         }
+        Double b = leerValor(limitB, "el límite superior (b)");
+        if (b == null) {
+            return;
+        }
+        try {
+            double res = Calculus.integral(funcIntegralInput.getText(), a, b, 1000);
+            integralResult.setText("Resultado: " + FormatoNumero.formatear(res, DIGITOS_INTEGRAL));
+        } catch (ArithmeticException ex) {
+            mostrarError("La función no está definida en algún punto del intervalo (división entre cero).");
+        } catch (IllegalArgumentException ex) {
+            mostrarError("Sintaxis inválida en la función f(x).");
+        }
+    }
+
+    /**
+     * Lee un campo numérico aceptando expresiones como "pi/2" o "2*e".
+     * Devuelve null (y avisa al usuario) si el valor no es válido.
+     */
+    private Double leerValor(JTextField campo, String nombre) {
+        try {
+            double valor = EvaluadorMath.evaluar(campo.getText());
+            if (Double.isFinite(valor)) {
+                return valor;
+            }
+        } catch (RuntimeException ex) {
+            // se informa abajo
+        }
+        mostrarError("Revisa " + nombre + ": debe ser un número o una expresión como pi/2.");
+        campo.requestFocusInWindow();
+        return null;
+    }
+
+    private void mostrarError(String mensaje) {
+        JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
