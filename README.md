@@ -11,7 +11,6 @@
 ![Swing](https://img.shields.io/badge/UI-Swing%20%2B%20FlatLaf-4A90E2?style=for-the-badge)
 ![NetBeans](https://img.shields.io/badge/NetBeans-compatible-1B6AC6?style=for-the-badge&logo=apachenetbeanside&logoColor=white)
 
-[![Compilación y pruebas](https://github.com/AcuLuis/Calculadora_Java/actions/workflows/build.yml/badge.svg)](https://github.com/AcuLuis/Calculadora_Java/actions/workflows/build.yml)
 ![Pruebas](https://img.shields.io/badge/pruebas-121%20JUnit%205-25A162)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-yellow)](LICENSE)
 
@@ -95,7 +94,6 @@ src/test/java/com/calculadora/math   → Pruebas JUnit 5 del modelo
 - **[XChart](https://knowm.org/open-source/xchart/)** — gráficos cartesianos.
 - **[FlatLaf](https://www.formdev.com/flatlaf/)** — Look and Feel moderno para Swing.
 - **[JUnit 5](https://junit.org/junit5/)** — pruebas unitarias.
-- **GitHub Actions** — compila y prueba cada cambio con Java 8, 17 y 21 en Linux y Windows.
 
 ## 🚀 Instalación y ejecución
 
@@ -129,7 +127,7 @@ El modelo matemático tiene **121 pruebas JUnit 5**: expresiones y sintaxis, for
 mvn test
 ```
 
-En NetBeans: clic derecho sobre el proyecto → **Test (Alt+F6)**. Las pruebas también se ejecutan en cada `mvn package` y en GitHub Actions con cada *push*.
+En NetBeans: clic derecho sobre el proyecto → **Test (Alt+F6)**. Las pruebas también se ejecutan automáticamente en cada `mvn package`.
 
 ## ✍️ Sintaxis de las expresiones
 
