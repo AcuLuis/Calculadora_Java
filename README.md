@@ -29,10 +29,12 @@ El proyecto sigue una separación tipo **MVC** (lógica matemática por un lado,
 
 | Módulo | Qué hace |
 |---|---|
-| **Estándar / Científica** | Operaciones `+ - * / ^`, paréntesis, `sin`, `cos`, `tan`, `sqrt`, `log`, `ln`, constantes `pi` y `e`. Resultados limpios (`0.1+0.2 = 0.3`) y notación científica para números muy grandes o pequeños. |
+| **Estándar / Científica** | Operaciones `+ − × ÷`, potencias, `x²`, `x⁻¹`, `√`, `n!`, `%`, `±`, `sin`, `cos`, `tan`, `log`, `ln`, constantes `π` y `e`, y la tecla `ANS` con el último resultado. Modo **RAD / DEG** para los ángulos. Resultados limpios (`0.1+0.2 = 0.3`, `sin(π) = 0`) y notación científica para números muy grandes o pequeños. |
+| **Teclado físico** | Puedes escribir la operación completa con el teclado; `Enter` calcula, `Esc` borra y `Ctrl+C` / `Ctrl+V` copian y pegan. |
 | **Gráficas** | Dibuja cualquier `f(x)` entre un `X mín` y un `X máx` con 800 puntos de muestreo. Deja huecos donde la función no existe y corta la línea en las asíntotas (`1/x`, `tan(x)`). |
 | **Derivada** | Derivada numérica en un punto mediante **diferencias finitas centrales** con paso adaptado a la magnitud de `x`. |
 | **Integral definida** | Integral en `[a, b]` mediante la **regla de Simpson 1/3** (1000 subintervalos). |
+| **Errores claros** | Los errores se muestran en rojo dentro de la ventana, indicando qué campo revisar, sin ventanas emergentes. |
 | **Tema oscuro** | Interfaz moderna con **FlatLaf** (Dark). |
 
 ## 📸 Capturas
@@ -110,16 +112,35 @@ java -jar target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar
 | Escribe | Significa |
 |---|---|
 | `2^3` | Potencia (2³) |
-| `sqrt(x)` | Raíz cuadrada |
-| `sin(x)`, `cos(x)`, `tan(x)` | Trigonométricas (en **radianes**) |
+| `sqrt(x)` o `√(x)` | Raíz cuadrada |
+| `5!` | Factorial (120) |
+| `50%`, `200*10%` | Porcentaje (0.5 y 20) |
+| `ANS` | Último resultado calculado |
+| `sin(x)`, `cos(x)`, `tan(x)` | Trigonométricas (en **radianes**, o en grados con el botón **DEG**) |
+| `asin(x)`, `acos(x)`, `atan(x)` | Trigonométricas inversas |
 | `log(x)` | Logaritmo en **base 10** |
 | `ln(x)` | Logaritmo **natural** |
 | `log2(x)` | Logaritmo en base 2 |
 | `abs(x)`, `exp(x)`, `cbrt(x)` | Valor absoluto, eˣ, raíz cúbica |
-| `pi`, `e` | Constantes π y e |
+| `pi` o `π`, `e` | Constantes π y e |
 | `2pi`, `3(x+1)` | Multiplicación implícita |
 
 > 💡 En los modos **Gráficas** y **Cálculo Numérico** la variable debe llamarse `x`. Los límites y el punto de evaluación también aceptan expresiones, por ejemplo `pi/2` o `-2*pi`.
+
+## ⌨️ Atajos de teclado
+
+| Tecla | Acción |
+|---|---|
+| `0`–`9`, `.` o `,` | Escribir números |
+| `+` `-` `*` `/` `^` `(` `)` `%` `!` | Operadores |
+| Letras (`sin`, `sqrt`, `pi`, `ans`…) | Escribir funciones y constantes |
+| `Enter` o `=` | Calcular |
+| `Retroceso` | Borrar el último carácter (o la función completa, como `sin(`) |
+| `Esc` o `Supr` | Borrar todo |
+| `Ctrl+C` / `Ctrl+V` | Copiar el resultado / pegar una expresión |
+| `Enter` en Gráficas y Cálculo Numérico | Trazar o calcular sin usar el ratón |
+
+> Si te falta un paréntesis de cierre, la calculadora lo agrega por ti: `sin(30` se calcula como `sin(30)`.
 
 ---
 
