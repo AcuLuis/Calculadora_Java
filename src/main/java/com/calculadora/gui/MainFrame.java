@@ -7,7 +7,8 @@ public class MainFrame extends JFrame {
 
     public MainFrame() {
         setTitle("Calculadora Avanzada PRO");
-        setSize(850, 650);
+        setSize(1080, 760);
+        setMinimumSize(new Dimension(920, 660)); // espacio para el historial y las gráficas
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         

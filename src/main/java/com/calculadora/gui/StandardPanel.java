@@ -102,6 +102,13 @@ public class StandardPanel extends JPanel {
     private JButton botonModo;
     private final Map<String, JButton> botonesPorToken = new HashMap<>();
 
+    /** Operaciones calculadas, la más reciente primero: {expresión, resultado}. */
+    private final DefaultListModel<String[]> historial = new DefaultListModel<>();
+    private JList<String[]> listaHistorial;
+    /** Posición al recorrer el historial con ↑ / ↓ (-1 = no se está recorriendo). */
+    private int posicionHistorial = -1;
+    private static final int MAX_HISTORIAL = 100;
+
     private boolean mostrandoResultado = false;
     private boolean mostrandoError = false;
     private ModoAngular modo = ModoAngular.RADIANES;
@@ -115,6 +122,7 @@ public class StandardPanel extends JPanel {
 
         add(crearPantalla(), BorderLayout.NORTH);
         add(crearTeclado(), BorderLayout.CENTER);
+        add(crearHistorial(), BorderLayout.EAST);
 
         instalarAtajosDeTeclado();
 
@@ -248,6 +256,8 @@ public class StandardPanel extends JPanel {
         registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "suprimir", () -> pulsar(Tipo.LIMPIAR));
         registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK), "copiar", this::copiar);
         registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK), "pegar", this::pegar);
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "historial-anterior", () -> navegarHistorial(1));
+        registrar(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "historial-siguiente", () -> navegarHistorial(-1));
     }
 
     private void registrar(InputMap im, ActionMap am, KeyStroke ks, String nombre, Runnable accion) {
@@ -331,6 +341,7 @@ public class StandardPanel extends JPanel {
     // ------------------------------------------------------------------ lógica
 
     private void procesar(Tecla tecla) {
+        posicionHistorial = -1;
         if (mostrandoError) {
             limpiarError();
         }
@@ -405,6 +416,7 @@ public class StandardPanel extends JPanel {
             if (Double.isFinite(result)) {
                 ans = result;
             }
+            agregarAlHistorial(expr, texto);
         } catch (ArithmeticException ex) {
             mostrarError("No se puede dividir entre cero");
         } catch (IllegalArgumentException ex) {
@@ -470,6 +482,118 @@ public class StandardPanel extends JPanel {
         int inicio = yaNegado ? m.start() : m.start(2);
         int fin = yaNegado ? m.end() : m.end(2);
         display.setText(actual.substring(0, inicio) + reemplazo + actual.substring(fin));
+    }
+
+    // ------------------------------------------------------------------ historial
+
+    private JPanel crearHistorial() {
+        JLabel titulo = new JLabel("Historial");
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titulo.setForeground(Color.LIGHT_GRAY);
+
+        JButton borrar = new JButton("Borrar");
+        borrar.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        borrar.setFocusable(false);
+        borrar.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        borrar.setToolTipText("Vaciar el historial");
+        borrar.addActionListener(e -> {
+            historial.clear();
+            posicionHistorial = -1;
+        });
+
+        JPanel cabecera = new JPanel(new BorderLayout());
+        cabecera.setOpaque(false);
+        cabecera.setBorder(new EmptyBorder(0, 2, 8, 0));
+        cabecera.add(titulo, BorderLayout.WEST);
+        cabecera.add(borrar, BorderLayout.EAST);
+
+        listaHistorial = new JList<>(historial);
+        listaHistorial.setFocusable(false); // el teclado sigue funcionando en la calculadora
+        listaHistorial.setBackground(COLOR_DISPLAY_BG);
+        listaHistorial.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        listaHistorial.setToolTipText("Clic para reutilizar la operación  ·  También con las flechas ↑ ↓");
+        listaHistorial.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                                                          boolean isSelected, boolean cellHasFocus) {
+                String[] entrada = (String[]) value;
+                String html = "<html><div style='text-align:right; width:170px'>"
+                        + "<font color='#9a9a9a'>" + escaparHtml(entrada[0]) + " =</font><br>"
+                        + "<font size='+1' color='#00ff96'><b>" + escaparHtml(entrada[1]) + "</b></font></div></html>";
+                JLabel label = (JLabel) super.getListCellRendererComponent(list, html, index, isSelected, false);
+                label.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(45, 45, 45)),
+                        new EmptyBorder(6, 8, 6, 8)));
+                label.setFont(new Font("Consolas", Font.PLAIN, 14));
+                return label;
+            }
+        });
+        listaHistorial.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int indice = listaHistorial.locationToIndex(e.getPoint());
+                if (indice >= 0 && listaHistorial.getCellBounds(indice, indice).contains(e.getPoint())) {
+                    cargarDelHistorial(indice);
+                }
+                requestFocusInWindow();
+            }
+        });
+
+        JScrollPane scroll = new JScrollPane(listaHistorial);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(70, 70, 70)));
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(230, 0));
+        panel.add(cabecera, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void agregarAlHistorial(String expresion, String resultado) {
+        // No repetir la misma operación si se calcula dos veces seguidas
+        if (!historial.isEmpty() && historial.get(0)[0].equals(expresion)) {
+            return;
+        }
+        historial.add(0, new String[]{expresion, resultado});
+        if (historial.size() > MAX_HISTORIAL) {
+            historial.remove(historial.size() - 1);
+        }
+    }
+
+    /** Recorre el historial con ↑ (más antiguo) y ↓ (más reciente). */
+    private void navegarHistorial(int direccion) {
+        if (historial.isEmpty()) {
+            return;
+        }
+        int nueva = posicionHistorial + direccion;
+        if (nueva < 0) {
+            posicionHistorial = -1;
+            listaHistorial.clearSelection();
+            display.setText("");
+            mostrandoResultado = false;
+            return;
+        }
+        cargarDelHistorial(Math.min(nueva, historial.size() - 1));
+    }
+
+    /** Pone la expresión de esa entrada en pantalla para editarla o recalcularla. */
+    private void cargarDelHistorial(int indice) {
+        if (mostrandoError) {
+            limpiarError();
+        }
+        posicionHistorial = indice;
+        String[] entrada = historial.get(indice);
+        display.setText(entrada[0]);
+        mostrandoResultado = false;
+        mostrarInfo("Del historial: " + entrada[0] + " = " + entrada[1], false);
+        listaHistorial.setSelectedIndex(indice);
+        listaHistorial.ensureIndexIsVisible(indice);
+    }
+
+    private static String escaparHtml(String texto) {
+        return texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     // ------------------------------------------------------------------ mensajes
