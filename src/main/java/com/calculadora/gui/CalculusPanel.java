@@ -31,20 +31,13 @@ public class CalculusPanel extends JPanel {
     private JLabel integralDetail;
     private GraficaFuncion integralChart;
 
-    private final Color COLOR_BG = new Color(40, 42, 44);
-    private final Color COLOR_BTN = new Color(33, 150, 243); // Azul moderno
-    private final Color COLOR_OK = new Color(76, 175, 80);
-    private final Color COLOR_AVISO = new Color(255, 167, 38);
-    private final Color COLOR_ERROR = new Color(255, 99, 99);
-    private final Color COLOR_DETALLE = new Color(160, 160, 160);
-    private final Color COLOR_CURVA = GraficaFuncion.PALETA[0];
-    private final Color COLOR_TANGENTE = GraficaFuncion.PALETA[1];
-    private final Color COLOR_AREA = new Color(0, 200, 255, 70);
+    private final Color COLOR_CURVA = Tema.PALETA[0];
+    private final Color COLOR_TANGENTE = Tema.PALETA[1];
 
-    private final Font labelFont = new Font("Segoe UI", Font.PLAIN, 17);
-    private final Font inputFont = new Font("Consolas", Font.BOLD, 19);
-    private final Font resultFont = new Font("Segoe UI", Font.BOLD, 21);
-    private final Font detailFont = new Font("Segoe UI", Font.PLAIN, 14);
+    private final Font labelFont = Tema.fuente(Font.PLAIN, 17);
+    private final Font inputFont = Tema.fuenteMono(Font.BOLD, 19);
+    private final Font resultFont = Tema.fuente(Font.BOLD, 21);
+    private final Font detailFont = Tema.fuente(Font.PLAIN, 14);
 
     // Dígitos significativos que se muestran según la precisión de cada método numérico
     private static final int DIGITOS_DERIVADA = 9;
@@ -53,10 +46,10 @@ public class CalculusPanel extends JPanel {
 
     public CalculusPanel() {
         setLayout(new BorderLayout());
-        setBackground(COLOR_BG);
+        setBackground(Tema.FONDO_PANEL);
 
         JTabbedPane tabs = new JTabbedPane();
-        tabs.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        tabs.setFont(Tema.fuente(Font.BOLD, 16));
 
         tabs.addTab("  Derivada  ", createDerivativePanel());
         tabs.addTab("  Integral Definida  ", createIntegralPanel());
@@ -80,8 +73,8 @@ public class CalculusPanel extends JPanel {
         agregarCampo(formulario, 1, 0, "x =", pointInput, 1);
         agregarBoton(formulario, 1, 2, createStyledButton("Calcular f'(x)", calcular));
 
-        derivativeResult = crearEtiqueta(resultFont, COLOR_OK);
-        derivativeDetail = crearEtiqueta(detailFont, COLOR_DETALLE);
+        derivativeResult = crearEtiqueta(resultFont, Tema.OK);
+        derivativeDetail = crearEtiqueta(detailFont, Tema.TEXTO_SECUNDARIO);
         agregarResultado(formulario, 2, derivativeResult, derivativeDetail);
 
         derivativeChart = new GraficaFuncion();
@@ -100,8 +93,8 @@ public class CalculusPanel extends JPanel {
         agregarCampo(formulario, 1, 2, "b =", limitB, 1);
         agregarBoton(formulario, 1, 4, createStyledButton("Calcular ∫ f(x) dx", calcular));
 
-        integralResult = crearEtiqueta(resultFont, COLOR_OK);
-        integralDetail = crearEtiqueta(detailFont, COLOR_DETALLE);
+        integralResult = crearEtiqueta(resultFont, Tema.OK);
+        integralDetail = crearEtiqueta(detailFont, Tema.TEXTO_SECUNDARIO);
         agregarResultado(formulario, 2, integralResult, integralDetail);
 
         integralChart = new GraficaFuncion();
@@ -112,14 +105,14 @@ public class CalculusPanel extends JPanel {
 
     private JPanel crearFormulario() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(COLOR_BG);
+        panel.setBackground(Tema.FONDO_PANEL);
         panel.setBorder(new EmptyBorder(14, 24, 4, 24));
         return panel;
     }
 
     private JPanel envolver(JPanel formulario, GraficaFuncion grafica) {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(COLOR_BG);
+        panel.setBackground(Tema.FONDO_PANEL);
         panel.add(formulario, BorderLayout.NORTH);
         grafica.setBorder(new EmptyBorder(4, 20, 16, 20));
         panel.add(grafica, BorderLayout.CENTER);
@@ -202,8 +195,8 @@ public class CalculusPanel extends JPanel {
 
     private JButton createStyledButton(String text, ActionListener accion) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        btn.setBackground(COLOR_BTN);
+        btn.setFont(Tema.fuente(Font.BOLD, 16));
+        btn.setBackground(Tema.AZUL);
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -234,29 +227,29 @@ public class CalculusPanel extends JPanel {
         String punto = FormatoNumero.formatear(x);
         switch (r.estado) {
             case EXISTE:
-                mostrar(derivativeResult, COLOR_OK, "f'(" + punto + ") ≈ " + FormatoNumero.formatear(r.valor, DIGITOS_DERIVADA));
+                mostrar(derivativeResult, Tema.OK, "f'(" + punto + ") ≈ " + FormatoNumero.formatear(r.valor, DIGITOS_DERIVADA));
                 derivativeDetail.setText("Recta tangente: " + ecuacionRecta(r.valor, r.fx - r.valor * x));
                 break;
             case NO_DEFINIDA:
-                mostrar(derivativeResult, COLOR_AVISO, "f'(" + punto + ") no existe");
+                mostrar(derivativeResult, Tema.AVISO, "f'(" + punto + ") no existe");
                 derivativeDetail.setText("f(x) no está definida en x = " + punto + ".");
                 break;
             case DISCONTINUA:
-                mostrar(derivativeResult, COLOR_AVISO, "f'(" + punto + ") no existe");
+                mostrar(derivativeResult, Tema.AVISO, "f'(" + punto + ") no existe");
                 derivativeDetail.setText("f(x) da un salto en x = " + punto + ": no es continua ahí.");
                 break;
             case ESQUINA:
-                mostrar(derivativeResult, COLOR_AVISO, "f'(" + punto + ") no existe");
+                mostrar(derivativeResult, Tema.AVISO, "f'(" + punto + ") no existe");
                 derivativeDetail.setText("Las derivadas laterales no coinciden: por la izquierda ≈ "
                         + FormatoNumero.formatear(r.izquierda, 6) + ", por la derecha ≈ " + FormatoNumero.formatear(r.derecha, 6) + ".");
                 break;
             case TANGENTE_VERTICAL:
-                mostrar(derivativeResult, COLOR_AVISO, "f'(" + punto + ") no existe (tangente vertical)");
+                mostrar(derivativeResult, Tema.AVISO, "f'(" + punto + ") no existe (tangente vertical)");
                 derivativeDetail.setText("La pendiente crece sin límite al acercarse a x = " + punto + ".");
                 break;
             case SOLO_LATERAL:
                 boolean porDerecha = Double.isNaN(r.izquierda);
-                mostrar(derivativeResult, COLOR_AVISO, "f'(" + punto + ") solo existe por la " + (porDerecha ? "derecha" : "izquierda"));
+                mostrar(derivativeResult, Tema.AVISO, "f'(" + punto + ") solo existe por la " + (porDerecha ? "derecha" : "izquierda"));
                 derivativeDetail.setText("f(x) no está definida del otro lado. Derivada lateral ≈ "
                         + FormatoNumero.formatear(r.valor, 6) + ".");
                 break;
@@ -340,18 +333,18 @@ public class CalculusPanel extends JPanel {
         String intervalo = "de a = " + FormatoNumero.formatear(a) + " a b = " + FormatoNumero.formatear(b);
         switch (r.estado) {
             case CONVERGE:
-                mostrar(integralResult, COLOR_OK, "∫ f(x) dx ≈ " + FormatoNumero.formatear(r.valor, digitosSegunError(r)));
+                mostrar(integralResult, Tema.OK, "∫ f(x) dx ≈ " + FormatoNumero.formatear(r.valor, digitosSegunError(r)));
                 String error = r.errorEstimado < 1e-15 ? "< 1E-15" : "≈ " + FormatoNumero.formatear(r.errorEstimado, 2);
                 integralDetail.setText(intervalo + "  ·  error estimado " + error
                         + "  ·  " + r.evaluaciones + " evaluaciones de f(x)");
                 break;
             case NO_CONVERGE:
-                mostrar(integralResult, COLOR_AVISO, "La integral no converge");
+                mostrar(integralResult, Tema.AVISO, "La integral no converge");
                 integralDetail.setText("f(x) parece tener una asíntota en el intervalo. Valor aproximado ≈ "
                         + FormatoNumero.formatear(r.valor, 6) + ", pero no es confiable.");
                 break;
             case NO_DEFINIDA:
-                mostrar(integralResult, COLOR_AVISO, "No se puede integrar en ese intervalo");
+                mostrar(integralResult, Tema.AVISO, "No se puede integrar en ese intervalo");
                 integralDetail.setText("f(x) no tiene valores reales en parte del intervalo " + intervalo.substring(3) + ".");
                 break;
             default:
@@ -383,7 +376,7 @@ public class CalculusPanel extends JPanel {
         integralChart.limpiar();
         if (r.converge() && desde < hasta) {
             Muestreo.Curva region = Muestreo.muestrear(expresion, desde, hasta, PUNTOS_GRAFICA);
-            integralChart.agregarArea("Área", region.x, region.y, COLOR_AREA);
+            integralChart.agregarArea("Área", region.x, region.y, Tema.AREA);
         }
         integralChart.agregarCurva("f(x)", curva, COLOR_CURVA);
         integralChart.setRangos(min, max, GraficaFuncion.rangoY(curva));
@@ -418,8 +411,8 @@ public class CalculusPanel extends JPanel {
     }
 
     private void mostrarError(JLabel label, JLabel detalle, String mensaje, JTextField campo) {
-        mostrar(label, COLOR_ERROR, mensaje);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        mostrar(label, Tema.ERROR, mensaje);
+        label.setFont(Tema.fuente(Font.BOLD, 16));
         detalle.setText(" ");
         marcarError(campo, true);
         campo.requestFocusInWindow();

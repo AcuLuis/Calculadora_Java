@@ -2,6 +2,9 @@ package com.calculadora.gui;
 
 import javax.swing.*;
 import java.awt.*;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainFrame extends JFrame {
 
@@ -11,13 +14,14 @@ public class MainFrame extends JFrame {
         setMinimumSize(new Dimension(920, 660)); // espacio para el historial y las gráficas
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        
+        setIconImages(cargarIconos());
+
         // Configurar un poco el diseño general del frame
-        getContentPane().setBackground(new Color(30, 30, 30));
+        getContentPane().setBackground(Tema.FONDO);
         
         JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        tabbedPane.setBackground(new Color(45, 45, 45));
+        tabbedPane.setFont(Tema.fuente(Font.BOLD, 16));
+        tabbedPane.setBackground(Tema.FONDO_PESTANAS);
         tabbedPane.setForeground(Color.LIGHT_GRAY);
         tabbedPane.setFocusable(false);
         
@@ -30,5 +34,17 @@ public class MainFrame extends JFrame {
         tabbedPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
         add(tabbedPane, BorderLayout.CENTER);
+    }
+
+    /** Ícono en varios tamaños; el sistema elige el adecuado para la barra de tareas y el título. */
+    private static List<Image> cargarIconos() {
+        List<Image> iconos = new ArrayList<>();
+        for (int tamano : new int[]{16, 24, 32, 48, 64, 128, 256}) {
+            URL recurso = MainFrame.class.getResource("/icons/icono-" + tamano + ".png");
+            if (recurso != null) {
+                iconos.add(new ImageIcon(recurso).getImage());
+            }
+        }
+        return iconos;
     }
 }

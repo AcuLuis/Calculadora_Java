@@ -21,7 +21,7 @@ import java.util.List;
 public class GraphPanel extends JPanel {
 
     /** Máximo de funciones que se pueden dibujar a la vez (una por color de la paleta). */
-    private static final int MAX_FUNCIONES = GraficaFuncion.PALETA.length;
+    private static final int MAX_FUNCIONES = Tema.PALETA.length;
     private static final int PUNTOS = 800; // más puntos, curva más suave
     private static final double FACTOR_ZOOM = 1.2;
     private static final String AYUDA = "Rueda del ratón: zoom  ·  Arrastrar: mover  ·  Doble clic: vista inicial  ·  Separa varias funciones con ;";
@@ -33,9 +33,6 @@ public class GraphPanel extends JPanel {
     private JLabel coordenadasLabel;
     private GraficaFuncion grafica;
 
-    private final Color COLOR_BG = new Color(40, 42, 44);
-    private final Color COLOR_BTN = new Color(156, 39, 176); // Púrpura moderno
-    private final Color COLOR_ERROR = new Color(255, 99, 99);
 
     /** Funciones dibujadas actualmente y su texto original. */
     private final List<Expression> expresiones = new ArrayList<>();
@@ -49,7 +46,7 @@ public class GraphPanel extends JPanel {
 
     public GraphPanel() {
         setLayout(new BorderLayout());
-        setBackground(COLOR_BG);
+        setBackground(Tema.FONDO_PANEL);
 
         add(crearControles(), BorderLayout.NORTH);
 
@@ -59,8 +56,8 @@ public class GraphPanel extends JPanel {
         instalarInteraccionRaton();
 
         coordenadasLabel = new JLabel(AYUDA);
-        coordenadasLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        coordenadasLabel.setForeground(new Color(160, 160, 160));
+        coordenadasLabel.setFont(Tema.fuente(Font.PLAIN, 14));
+        coordenadasLabel.setForeground(Tema.TEXTO_SECUNDARIO);
         coordenadasLabel.setBorder(new EmptyBorder(6, 24, 12, 20));
         add(coordenadasLabel, BorderLayout.SOUTH);
 
@@ -72,15 +69,15 @@ public class GraphPanel extends JPanel {
 
     private JPanel crearControles() {
         JPanel controlPanel = new JPanel(new GridBagLayout());
-        controlPanel.setBackground(COLOR_BG);
+        controlPanel.setBackground(Tema.FONDO_PANEL);
         controlPanel.setBorder(new EmptyBorder(16, 20, 0, 20));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 10, 5, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        Font labelFont = new Font("Segoe UI", Font.BOLD, 16);
-        Font inputFont = new Font("Consolas", Font.PLAIN, 18);
+        Font labelFont = Tema.fuente(Font.BOLD, 16);
+        Font inputFont = Tema.fuenteMono(Font.PLAIN, 18);
 
         JLabel lblFunc = new JLabel("f(x) =");
         lblFunc.setFont(labelFont);
@@ -116,12 +113,12 @@ public class GraphPanel extends JPanel {
         fila.add(maxXInput);
 
         fila.add(Box.createHorizontalStrut(20));
-        JButton plotBtn = crearBoton("Trazar Gráfica", COLOR_BTN);
+        JButton plotBtn = crearBoton("Trazar Gráfica", Tema.PURPURA);
         plotBtn.addActionListener(this::plotFunction);
         fila.add(plotBtn);
 
         fila.add(Box.createHorizontalStrut(10));
-        JButton resetBtn = crearBoton("Vista inicial", new Color(70, 73, 75));
+        JButton resetBtn = crearBoton("Vista inicial", Tema.BOTON_SECUNDARIO);
         resetBtn.setToolTipText("Vuelve al rango de X Mín a X Máx (también con doble clic en la gráfica)");
         resetBtn.addActionListener(e -> restablecerVista());
         fila.add(resetBtn);
@@ -131,8 +128,8 @@ public class GraphPanel extends JPanel {
 
         // Línea de estado: muestra los errores sin abrir ventanas emergentes
         estadoLabel = new JLabel(" ");
-        estadoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-        estadoLabel.setForeground(COLOR_ERROR);
+        estadoLabel.setFont(Tema.fuente(Font.PLAIN, 15));
+        estadoLabel.setForeground(Tema.ERROR);
         gbc.gridx = 1; gbc.gridy = 2; gbc.gridwidth = 1;
         controlPanel.add(estadoLabel, gbc);
         return controlPanel;
@@ -140,7 +137,7 @@ public class GraphPanel extends JPanel {
 
     private JButton crearBoton(String texto, Color fondo) {
         JButton boton = new JButton(texto);
-        boton.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        boton.setFont(Tema.fuente(Font.BOLD, 16));
         boton.setBackground(fondo);
         boton.setForeground(Color.WHITE);
         boton.setFocusPainted(false);
@@ -260,7 +257,7 @@ public class GraphPanel extends JPanel {
         boolean varias = curvas.size() > 1;
         grafica.limpiar();
         for (int i = 0; i < curvas.size(); i++) {
-            grafica.agregarCurva(nombreSerie(i, varias), curvas.get(i), GraficaFuncion.PALETA[i]);
+            grafica.agregarCurva(nombreSerie(i, varias), curvas.get(i), Tema.PALETA[i]);
         }
         rangoYActual = Muestreo.rangoY(curvas);
         grafica.setRangos(min, max, rangoYActual);
@@ -398,7 +395,7 @@ public class GraphPanel extends JPanel {
         boolean varias = expresiones.size() > 1;
         for (int i = 0; i < expresiones.size(); i++) {
             double fx = Muestreo.evaluarSeguro(expresiones.get(i), x);
-            String color = String.format("#%06x", GraficaFuncion.PALETA[i].getRGB() & 0xFFFFFF);
+            String color = String.format("#%06x", Tema.PALETA[i].getRGB() & 0xFFFFFF);
             sb.append("&nbsp;&nbsp;&nbsp;<font color='").append(color).append("'>")
                     .append(varias ? "f" + (i + 1) : "f").append("(x) = <b>")
                     .append(FormatoNumero.formatear(fx, 6)).append("</b></font>");

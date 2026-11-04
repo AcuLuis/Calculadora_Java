@@ -81,21 +81,9 @@ public class StandardPanel extends JPanel {
 
     private static final String COLOR_BASE = "colorBase";
 
-    // Colores para el diseño
-    private final Color COLOR_BG = new Color(30, 30, 30);
-    private final Color COLOR_DISPLAY_BG = new Color(20, 20, 20);
-    private final Color COLOR_DISPLAY_FG = new Color(0, 255, 150); // Verde estilo terminal/retro
-    private final Color COLOR_BTN_NUM = new Color(60, 63, 65);
-    private final Color COLOR_BTN_OP = new Color(255, 152, 0); // Naranja para operadores
-    private final Color COLOR_BTN_FUNC = new Color(43, 43, 43); // Gris oscuro para funciones
-    private final Color COLOR_BTN_CLEAR = new Color(244, 67, 54); // Rojo para limpiar
-    private final Color COLOR_BTN_EQ = new Color(76, 175, 80); // Verde para igual
-    private final Color COLOR_BTN_MODO = new Color(33, 150, 243); // Azul para el modo angular
-    private final Color COLOR_INFO = new Color(150, 150, 150);
-    private final Color COLOR_ERROR = new Color(255, 99, 99);
 
-    private final Border bordeDisplay = crearBordeDisplay(new Color(100, 100, 100));
-    private final Border bordeDisplayError = crearBordeDisplay(COLOR_ERROR);
+    private final Border bordeDisplay = crearBordeDisplay(Tema.BORDE);
+    private final Border bordeDisplayError = crearBordeDisplay(Tema.ERROR);
 
     private JTextField display;
     private JLabel infoLabel;
@@ -116,7 +104,7 @@ public class StandardPanel extends JPanel {
 
     public StandardPanel() {
         setLayout(new BorderLayout(15, 15));
-        setBackground(COLOR_BG);
+        setBackground(Tema.FONDO);
         setBorder(new EmptyBorder(20, 25, 25, 25));
         setFocusable(true);
 
@@ -146,23 +134,23 @@ public class StandardPanel extends JPanel {
 
     private JPanel crearPantalla() {
         infoLabel = new JLabel(" ");
-        infoLabel.setFont(new Font("Consolas", Font.PLAIN, 18));
-        infoLabel.setForeground(COLOR_INFO);
+        infoLabel.setFont(Tema.fuenteMono(Font.PLAIN, 18));
+        infoLabel.setForeground(Tema.TEXTO_SECUNDARIO);
         infoLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         infoLabel.setBorder(new EmptyBorder(0, 5, 6, 8));
 
         display = new JTextField();
-        display.setFont(new Font("Consolas", Font.BOLD, 44));
+        display.setFont(Tema.fuenteMono(Font.BOLD, 44));
         display.setHorizontalAlignment(JTextField.RIGHT);
-        display.setBackground(COLOR_DISPLAY_BG);
-        display.setForeground(COLOR_DISPLAY_FG);
+        display.setBackground(Tema.FONDO_PANTALLA);
+        display.setForeground(Tema.TEXTO_PANTALLA);
         display.setBorder(bordeDisplay);
         display.setEditable(false);
         display.setFocusable(false); // el panel maneja el teclado
         display.setToolTipText("Ctrl+C copia el contenido, Ctrl+V pega una expresión");
 
         JPanel pantalla = new JPanel(new BorderLayout());
-        pantalla.setBackground(COLOR_BG);
+        pantalla.setBackground(Tema.FONDO);
         pantalla.add(infoLabel, BorderLayout.NORTH);
         pantalla.add(display, BorderLayout.CENTER);
         return pantalla;
@@ -170,7 +158,7 @@ public class StandardPanel extends JPanel {
 
     private JPanel crearTeclado() {
         JPanel teclado = new JPanel(new GridLayout(6, 6, 8, 8));
-        teclado.setBackground(COLOR_BG);
+        teclado.setBackground(Tema.FONDO);
         for (Tecla tecla : TECLAS) {
             JButton boton = crearBoton(tecla);
             teclado.add(boton);
@@ -186,34 +174,34 @@ public class StandardPanel extends JPanel {
 
     private JButton crearBoton(Tecla tecla) {
         JButton button = new JButton(tecla.etiqueta);
-        button.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        button.setFont(Tema.fuente(Font.BOLD, 22));
         button.setFocusPainted(false);
         button.setFocusable(false); // así el foco (y el teclado) se quedan en el panel
-        button.setBorder(BorderFactory.createLineBorder(new Color(80, 80, 80), 1, true));
+        button.setBorder(BorderFactory.createLineBorder(Tema.BORDE_SUAVE, 1, true));
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
         button.setToolTipText(tecla.ayuda);
         button.setForeground(Color.WHITE);
 
         switch (tecla.tipo) {
             case NUMERO:
-                button.setBackground(COLOR_BTN_NUM);
+                button.setBackground(Tema.BOTON_NUMERO);
                 break;
             case OPERADOR:
                 // ")" se comporta como operador (continúa la expresión) pero se pinta como "("
-                button.setBackground(tecla.token.equals(")") ? COLOR_BTN_NUM : COLOR_BTN_OP);
+                button.setBackground(tecla.token.equals(")") ? Tema.BOTON_NUMERO : Tema.NARANJA);
                 break;
             case LIMPIAR:
             case BORRAR:
-                button.setBackground(COLOR_BTN_CLEAR);
+                button.setBackground(Tema.ROJO);
                 break;
             case IGUAL:
-                button.setBackground(COLOR_BTN_EQ);
+                button.setBackground(Tema.VERDE);
                 break;
             case MODO:
-                button.setBackground(COLOR_BTN_MODO);
+                button.setBackground(Tema.AZUL);
                 break;
             default:
-                button.setBackground(COLOR_BTN_FUNC);
+                button.setBackground(Tema.BOTON_FUNCION);
                 button.setForeground(Color.LIGHT_GRAY);
                 break;
         }
@@ -488,11 +476,11 @@ public class StandardPanel extends JPanel {
 
     private JPanel crearHistorial() {
         JLabel titulo = new JLabel("Historial");
-        titulo.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titulo.setFont(Tema.fuente(Font.BOLD, 16));
         titulo.setForeground(Color.LIGHT_GRAY);
 
         JButton borrar = new JButton("Borrar");
-        borrar.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        borrar.setFont(Tema.fuente(Font.PLAIN, 13));
         borrar.setFocusable(false);
         borrar.setCursor(new Cursor(Cursor.HAND_CURSOR));
         borrar.setToolTipText("Vaciar el historial");
@@ -509,7 +497,7 @@ public class StandardPanel extends JPanel {
 
         listaHistorial = new JList<>(historial);
         listaHistorial.setFocusable(false); // el teclado sigue funcionando en la calculadora
-        listaHistorial.setBackground(COLOR_DISPLAY_BG);
+        listaHistorial.setBackground(Tema.FONDO_PANTALLA);
         listaHistorial.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         listaHistorial.setToolTipText("Clic para reutilizar la operación  ·  También con las flechas ↑ ↓");
         listaHistorial.setCellRenderer(new DefaultListCellRenderer() {
@@ -522,9 +510,9 @@ public class StandardPanel extends JPanel {
                         + "<font size='+1' color='#00ff96'><b>" + escaparHtml(entrada[1]) + "</b></font></div></html>";
                 JLabel label = (JLabel) super.getListCellRendererComponent(list, html, index, isSelected, false);
                 label.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(45, 45, 45)),
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, Tema.SEPARADOR),
                         new EmptyBorder(6, 8, 6, 8)));
-                label.setFont(new Font("Consolas", Font.PLAIN, 14));
+                label.setFont(Tema.fuenteMono(Font.PLAIN, 14));
                 return label;
             }
         });
@@ -540,7 +528,7 @@ public class StandardPanel extends JPanel {
         });
 
         JScrollPane scroll = new JScrollPane(listaHistorial);
-        scroll.setBorder(BorderFactory.createLineBorder(new Color(70, 70, 70)));
+        scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE_TENUE));
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         JPanel panel = new JPanel(new BorderLayout());
@@ -600,7 +588,7 @@ public class StandardPanel extends JPanel {
 
     private void mostrarInfo(String texto, boolean error) {
         infoLabel.setText(texto);
-        infoLabel.setForeground(error ? COLOR_ERROR : COLOR_INFO);
+        infoLabel.setForeground(error ? Tema.ERROR : Tema.TEXTO_SECUNDARIO);
     }
 
     private void mostrarError(String mensaje) {
@@ -611,7 +599,7 @@ public class StandardPanel extends JPanel {
 
     private void limpiarError() {
         infoLabel.setText(" ");
-        infoLabel.setForeground(COLOR_INFO);
+        infoLabel.setForeground(Tema.TEXTO_SECUNDARIO);
         display.setBorder(bordeDisplay);
         mostrandoError = false;
     }

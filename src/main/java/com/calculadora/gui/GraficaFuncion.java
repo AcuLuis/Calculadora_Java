@@ -24,16 +24,6 @@ import java.util.List;
  */
 public class GraficaFuncion extends JPanel {
 
-    /** Colores de las curvas, en orden. */
-    public static final Color[] PALETA = {
-        new Color(0, 200, 255),   // azul neón
-        new Color(255, 152, 0),   // naranja
-        new Color(102, 187, 106), // verde
-        new Color(240, 98, 146),  // rosa
-        new Color(255, 238, 88),  // amarillo
-        new Color(179, 136, 255)  // lila
-    };
-
     private final XYChart chart;
     private final XChartPanel<XYChart> panelGrafica;
 
@@ -43,18 +33,18 @@ public class GraficaFuncion extends JPanel {
 
         chart = new XYChartBuilder().width(600).height(400).xAxisTitle("x").yAxisTitle("y").build();
         XYStyler styler = chart.getStyler();
-        styler.setChartBackgroundColor(new Color(43, 43, 43));
-        styler.setPlotBackgroundColor(new Color(30, 30, 30));
-        styler.setPlotGridLinesColor(new Color(80, 80, 80));
-        styler.setPlotBorderColor(new Color(90, 90, 90));
+        styler.setChartBackgroundColor(Tema.GRAFICA_FONDO);
+        styler.setPlotBackgroundColor(Tema.GRAFICA_AREA_TRAZADO);
+        styler.setPlotGridLinesColor(Tema.GRAFICA_CUADRICULA);
+        styler.setPlotBorderColor(Tema.GRAFICA_BORDE);
         styler.setChartFontColor(Color.WHITE);
         styler.setAxisTickLabelsColor(Color.LIGHT_GRAY);
         styler.setXAxisDecimalPattern("#.##"); // evita etiquetas como -6.39549436795995
         styler.setLegendVisible(false);
         styler.setLegendPosition(Styler.LegendPosition.InsideNW);
-        styler.setLegendBackgroundColor(new Color(43, 43, 43, 220));
-        styler.setLegendBorderColor(new Color(90, 90, 90));
-        styler.setLegendFont(new Font("Segoe UI", Font.PLAIN, 13));
+        styler.setLegendBackgroundColor(Tema.GRAFICA_LEYENDA);
+        styler.setLegendBorderColor(Tema.GRAFICA_BORDE);
+        styler.setLegendFont(Tema.fuente(Font.PLAIN, 13));
         styler.setMarkerSize(10); // solo lo usan los puntos marcados; las curvas no llevan marcadores
 
         panelGrafica = new XChartPanel<>(chart);
