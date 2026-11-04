@@ -30,10 +30,11 @@ El proyecto sigue una separación tipo **MVC** (lógica matemática por un lado,
 | Módulo | Qué hace |
 |---|---|
 | **Estándar / Científica** | Operaciones `+ − × ÷`, potencias, `x²`, `x⁻¹`, `√`, `n!`, `%`, `±`, `sin`, `cos`, `tan`, `log`, `ln`, constantes `π` y `e`, y la tecla `ANS` con el último resultado. Modo **RAD / DEG** para los ángulos. Resultados limpios (`0.1+0.2 = 0.3`, `sin(π) = 0`) y notación científica para números muy grandes o pequeños. |
+| **Historial** | Cada operación queda guardada; un clic (o las flechas `↑` `↓`) la recupera para editarla o recalcularla. |
 | **Teclado físico** | Puedes escribir la operación completa con el teclado; `Enter` calcula, `Esc` borra y `Ctrl+C` / `Ctrl+V` copian y pegan. |
-| **Gráficas** | Dibuja cualquier `f(x)` entre un `X mín` y un `X máx` con 800 puntos de muestreo. Deja huecos donde la función no existe y corta la línea en las asíntotas (`1/x`, `tan(x)`). |
-| **Derivada** | Derivada numérica en un punto mediante **diferencias finitas centrales** con paso adaptado a la magnitud de `x`. |
-| **Integral definida** | Integral en `[a, b]` mediante la **regla de Simpson 1/3** (1000 subintervalos). |
+| **Gráficas** | Hasta **6 funciones a la vez** (separadas por `;`) con colores y leyenda. **Zoom** con la rueda del ratón, **arrastrar** para moverse y coordenadas de cada función bajo el cursor. Deja huecos donde la función no existe, corta la línea en las asíntotas (`1/x`, `tan(x)`) y ajusta el eje Y para que los picos no aplasten la curva. |
+| **Derivada** | Derivada numérica con **diferencias finitas centrales** y su **recta tangente** dibujada. Detecta cuándo la derivada **no existe**: esquinas (`abs(x)` en 0), saltos (`floor(x)`), tangentes verticales (`cbrt(x)` en 0) o funciones definidas solo a un lado (`sqrt(x)` en 0). |
+| **Integral definida** | **Simpson adaptativo** con error estimado: subdivide solo donde la función lo necesita. Resuelve singularidades integrables (`1/sqrt(x)`, `ln(x)` y `sin(x)/x` en 0) con cuadratura **tanh-sinh**, avisa cuando la integral **diverge** (`1/x` en [0, 1]) y sombrea el área en la gráfica. |
 | **Errores claros** | Los errores se muestran en rojo dentro de la ventana, indicando qué campo revisar, sin ventanas emergentes. |
 | **Tema oscuro** | Interfaz moderna con **FlatLaf** (Dark). |
 
@@ -43,17 +44,17 @@ El proyecto sigue una separación tipo **MVC** (lógica matemática por un lado,
   <tr>
     <td align="center" colspan="2">
       <img src="docs/img/graficas.png" alt="Graficador de funciones" width="720"><br>
-      <sub><b>Graficador</b> — f(x) = sin(x)·x en [-10, 10]</sub>
+      <sub><b>Graficador</b> — sin(x)·x y cos(x) a la vez, con sus valores bajo el cursor</sub>
     </td>
   </tr>
   <tr>
     <td align="center">
       <img src="docs/img/derivada.png" alt="Derivada numérica" width="360"><br>
-      <sub><b>Derivada</b> — f(x) = x³ − 2x evaluada en x = 2</sub>
+      <sub><b>Derivada</b> — f(x) = x³ − 2x en x = 1 y su recta tangente</sub>
     </td>
     <td align="center">
       <img src="docs/img/integral.png" alt="Integral definida" width="360"><br>
-      <sub><b>Integral</b> — ∫ sin(x) dx de 0 a π = 2</sub>
+      <sub><b>Integral</b> — ∫ (x² − 2) dx de −2 a 2: el área bajo el eje cuenta en negativo</sub>
     </td>
   </tr>
 </table>
@@ -67,12 +68,14 @@ src/main/java/com/calculadora
 ├── math                     → Modelo (lógica pura)
 │   ├── EvaluadorMath.java   → Evalúa expresiones y funciones f(x)
 │   ├── FormatoNumero.java   → Presenta los resultados de forma legible
-│   └── Calculus.java        → Derivada (diferencias centrales) e integral (Simpson)
+│   ├── Muestreo.java        → Puntos de una curva, huecos, asíntotas y rango Y
+│   └── Calculus.java        → Análisis de la derivada e integral adaptativa
 └── gui                      → Vista / Controlador
     ├── MainFrame.java       → Ventana principal con pestañas
-    ├── StandardPanel.java   → Teclado y pantalla de la calculadora
-    ├── GraphPanel.java      → Controles y gráfica de f(x)
-    └── CalculusPanel.java   → Pestañas de derivada e integral
+    ├── StandardPanel.java   → Teclado, pantalla e historial de la calculadora
+    ├── GraphPanel.java      → Graficador con zoom, desplazamiento y coordenadas
+    ├── CalculusPanel.java   → Pestañas de derivada e integral con sus gráficas
+    └── GraficaFuncion.java  → Gráfica reutilizable con el tema oscuro
 ```
 
 ## 🛠️ Tecnologías
@@ -125,7 +128,7 @@ java -jar target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar
 | `pi` o `π`, `e` | Constantes π y e |
 | `2pi`, `3(x+1)` | Multiplicación implícita |
 
-> 💡 En los modos **Gráficas** y **Cálculo Numérico** la variable debe llamarse `x`. Los límites y el punto de evaluación también aceptan expresiones, por ejemplo `pi/2` o `-2*pi`.
+> 💡 En los modos **Gráficas** y **Cálculo Numérico** la variable debe llamarse `x`. Para graficar varias funciones sepáralas con `;`, por ejemplo `sin(x); cos(x); x^2/10`. Los límites y el punto de evaluación también aceptan expresiones, por ejemplo `pi/2` o `-2*pi`.
 
 ## ⌨️ Atajos de teclado
 
@@ -138,7 +141,10 @@ java -jar target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar
 | `Retroceso` | Borrar el último carácter (o la función completa, como `sin(`) |
 | `Esc` o `Supr` | Borrar todo |
 | `Ctrl+C` / `Ctrl+V` | Copiar el resultado / pegar una expresión |
+| `↑` / `↓` | Recorrer el historial de operaciones |
 | `Enter` en Gráficas y Cálculo Numérico | Trazar o calcular sin usar el ratón |
+
+**En la gráfica:** rueda del ratón para acercar o alejar, arrastrar para moverse y doble clic para volver a la vista inicial.
 
 > Si te falta un paréntesis de cierre, la calculadora lo agrega por ti: `sin(30` se calcula como `sin(30)`.
 
