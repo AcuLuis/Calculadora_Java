@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧮 Calculadora Avanzada en Java
+<img src="docs/img/icono.png" alt="Ícono" width="110">
+
+# Calculadora Avanzada en Java
 
 **Calculadora científica, gráfica y de cálculo numérico hecha con Java Swing**
 
@@ -8,6 +10,10 @@
 ![Maven](https://img.shields.io/badge/Maven-3.6%2B-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
 ![Swing](https://img.shields.io/badge/UI-Swing%20%2B%20FlatLaf-4A90E2?style=for-the-badge)
 ![NetBeans](https://img.shields.io/badge/NetBeans-compatible-1B6AC6?style=for-the-badge&logo=apachenetbeanside&logoColor=white)
+
+[![Compilación y pruebas](https://github.com/AcuLuis/Calculadora_Java/actions/workflows/build.yml/badge.svg)](https://github.com/AcuLuis/Calculadora_Java/actions/workflows/build.yml)
+![Pruebas](https://img.shields.io/badge/pruebas-121%20JUnit%205-25A162)
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-yellow)](LICENSE)
 
 <img src="docs/img/estandar.png" alt="Modo estándar / científico" width="720">
 
@@ -75,7 +81,10 @@ src/main/java/com/calculadora
     ├── StandardPanel.java   → Teclado, pantalla e historial de la calculadora
     ├── GraphPanel.java      → Graficador con zoom, desplazamiento y coordenadas
     ├── CalculusPanel.java   → Pestañas de derivada e integral con sus gráficas
-    └── GraficaFuncion.java  → Gráfica reutilizable con el tema oscuro
+    ├── GraficaFuncion.java  → Gráfica reutilizable con el tema oscuro
+    └── Tema.java            → Colores y fuentes de toda la aplicación
+
+src/test/java/com/calculadora/math   → Pruebas JUnit 5 del modelo
 ```
 
 ## 🛠️ Tecnologías
@@ -85,6 +94,8 @@ src/main/java/com/calculadora
 - **[exp4j](https://www.objecthunter.net/exp4j/)** — motor de evaluación de expresiones.
 - **[XChart](https://knowm.org/open-source/xchart/)** — gráficos cartesianos.
 - **[FlatLaf](https://www.formdev.com/flatlaf/)** — Look and Feel moderno para Swing.
+- **[JUnit 5](https://junit.org/junit5/)** — pruebas unitarias.
+- **GitHub Actions** — compila y prueba cada cambio con Java 8, 17 y 21 en Linux y Windows.
 
 ## 🚀 Instalación y ejecución
 
@@ -101,7 +112,7 @@ src/main/java/com/calculadora
    ```
 2. En NetBeans: **File → Open Project…** y selecciona la carpeta `Calculadora_Java` (se reconoce como proyecto Maven).
 3. Espera a que se descarguen las dependencias.
-4. Pulsa **Run Project (F6)**. Si te pide la clase principal, elige `com.calculadora.main.Main`.
+4. Pulsa **Run Project (F6)**.
 
 ### Opción 2 — Terminal
 
@@ -109,6 +120,16 @@ src/main/java/com/calculadora
 mvn clean package
 java -jar target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
+
+## 🧪 Pruebas
+
+El modelo matemático tiene **121 pruebas JUnit 5**: expresiones y sintaxis, formato de resultados, derivadas que existen y que no, integrales convergentes, con singularidades y divergentes, el muestreo de las gráficas y un *fuzzing* de 100 000 expresiones mal formadas.
+
+```bash
+mvn test
+```
+
+En NetBeans: clic derecho sobre el proyecto → **Test (Alt+F6)**. Las pruebas también se ejecutan en cada `mvn package` y en GitHub Actions con cada *push*.
 
 ## ✍️ Sintaxis de las expresiones
 
@@ -147,6 +168,10 @@ java -jar target/calculadora-avanzada-1.0-SNAPSHOT-jar-with-dependencies.jar
 **En la gráfica:** rueda del ratón para acercar o alejar, arrastrar para moverse y doble clic para volver a la vista inicial.
 
 > Si te falta un paréntesis de cierre, la calculadora lo agrega por ti: `sin(30` se calcula como `sin(30)`.
+
+## 📄 Licencia
+
+Este proyecto se distribuye bajo la licencia **MIT**: puedes usarlo, modificarlo y compartirlo libremente, siempre que conserves el aviso de copyright. Consulta el archivo [LICENSE](LICENSE).
 
 ---
 
